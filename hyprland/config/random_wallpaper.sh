@@ -1,10 +1,6 @@
 #!/bin/bash
 WALLPAPER_DIR="$HOME/wallpapers/walls"
 
-# if ps aux | grep "swww-daemon & bash /home/niiixkz/.config/hypr/random_wallpaper.sh" | grep -v grep > /dev/null; then
-#     exit 1
-# fi
-
 if [ $(ps aux | grep "swww-daemon & bash /home/niiixkz/.config/hypr/random_wallpaper.sh" | grep -v grep | wc -l) -ge 2 ]; then
     exit 1
 fi

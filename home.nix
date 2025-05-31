@@ -6,17 +6,6 @@
 
   home.packages = with pkgs; [
     foot
-    nwg-look # for gdk cursor and themes
-    catppuccin-gtk
-    dracula-icon-theme
-
-    swww
-    pywal
-    fd
-
-    waybar
-    wofi
-    swaynotificationcenter
   ];
 
   programs.git = {
