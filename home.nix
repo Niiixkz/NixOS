@@ -26,18 +26,11 @@
   };
 
   programs.firefox.enable = true;
-  
-  # home.file."abc".text = ''
-  #     xxx
-  # '';
 
-  # wayland.windowManager.hyprland.enable = true;
-
-  # programs.hyprland = {
-  #   enable = true;
-  #   withUWSM = true;
-  #   xwayland.enable = true;
-  # };
+  imports = [
+    ./hyprland/default.nix
+    ./miku-cursor/default.nix
+  ];
 
   home.stateVersion = "25.05";
 }

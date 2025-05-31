@@ -48,6 +48,7 @@
     neovim
     unzip
     git
+    file
     home-manager
   ];
 
