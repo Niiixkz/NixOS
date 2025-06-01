@@ -20,4 +20,8 @@
     source = ./config/random_wallpaper.sh;
     executable = true;
   };
+  home.file.".config/hypr/wallpapers" = {
+    source = ./config/wallpapers;
+    recursive = true;
+  };
 }

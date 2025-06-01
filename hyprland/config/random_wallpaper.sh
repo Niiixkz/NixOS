@@ -1,16 +1,19 @@
 #!/bin/bash
-WALLPAPER_DIR="$HOME/wallpapers/walls"
+WALLPAPER_DIR="$HOME/.config/hypr/wallpapers"
 
-if [ $(ps aux | grep "swww-daemon & bash /home/niiixkz/.config/hypr/random_wallpaper.sh" | grep -v grep | wc -l) -ge 2 ]; then
+# -ge 3 because original, current and grep process
+if [ $(ps aux | grep bash | grep random_wallpaper.sh | wc -l) -ge 3 ]; then
     exit 1
 fi
 
 while true; do
 	selected_wallpaper=$(
-		find "${WALLPAPER_DIR}" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) | shuf -n 1
+		find -L "${WALLPAPER_DIR}" -type f | shuf -n 1
 	)
 
-	swww img "$selected_wallpaper" --transition-type any --transition-fps 60 --transition-duration .5
+	swww img "$selected_wallpaper" --transition-type fade --transition-fps 60 --transition-duration 5
+
+	sleep 2
 
 	wal -i "$selected_wallpaper" -n 
 
@@ -18,5 +21,5 @@ while true; do
 	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
 	# pywalfox update
 
-	sleep 600
+	sleep 300
 done
