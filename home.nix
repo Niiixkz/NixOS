@@ -19,6 +19,7 @@
   imports = [
     ./hyprland/default.nix
     ./miku-cursor/default.nix
+    ./tools/default.nix
   ];
 
   home.stateVersion = "25.05";
