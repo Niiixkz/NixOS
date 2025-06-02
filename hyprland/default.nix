@@ -10,7 +10,6 @@
     pywal
     fd
 
-    waybar
     wofi
     swaynotificationcenter
   ];
@@ -24,4 +23,8 @@
     source = ./config/wallpapers;
     recursive = true;
   };
+
+  imports = [
+    ./waybar/default.nix
+  ];
 }
