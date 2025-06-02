@@ -17,7 +17,7 @@ while true; do
 
 	wal -i "$selected_wallpaper" -n 
 
-	# swaync-client --reload-css
+	swaync-client --reload-css
 	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
 	# pywalfox update
 

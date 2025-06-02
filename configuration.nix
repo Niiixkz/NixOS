@@ -27,13 +27,10 @@
   services.blueman.enable = true;
   hardware.bluetooth.enable = true;
 
-  # Enable sound.
-  # services.pulseaudio.enable = true;
-  # OR
-  # services.pipewire = {
-  #   enable = true;
-  #   pulse.enable = true;
-  # };
+  services.pipewire = {
+    enable = true;
+    pulse.enable = true;
+  };
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
@@ -52,6 +49,7 @@
     git
     file
     home-manager
+    pulseaudio
   ];
 
   programs.hyprland = {

@@ -11,7 +11,6 @@
     fd
 
     wofi
-    swaynotificationcenter
   ];
 
   home.file.".config/hypr/hyprland.conf".source = ./config/hyprland.conf;
@@ -26,5 +25,6 @@
 
   imports = [
     ./waybar/default.nix
+    ./swaync/default.nix
   ];
 }
