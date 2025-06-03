@@ -1,5 +1,6 @@
 #!/bin/bash
 WALLPAPER_DIR="$HOME/.config/hypr/wallpapers"
+CONFIG_DIR="$HOME/.config"
 
 # -ge 3 because original, current and grep process
 if [ $(ps aux | grep bash | grep random_wallpaper.sh | wc -l) -ge 3 ]; then
@@ -18,6 +19,8 @@ while true; do
 	wal -i "$selected_wallpaper" -n 
 
 	swaync-client --reload-css
+
+	bash "$CONFIG_DIR/foot/update_colors.sh"
 	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
 	# pywalfox update
 

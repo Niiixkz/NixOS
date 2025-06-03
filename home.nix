@@ -4,10 +4,6 @@
   home.username = "niiixkz";
   home.homeDirectory = "/home/niiixkz";
 
-  home.packages = with pkgs; [
-    foot
-  ];
-
   programs.git = {
     enable = true;
     userName = "Niiixkz";
