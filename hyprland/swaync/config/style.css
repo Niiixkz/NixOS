@@ -338,7 +338,10 @@ trough highlight:hover {
 }
 
 trough slider {
+    all: unset;
     background: transparent;
+    min-width: 0;
+    min-height: 0;
 }
 trough slider:hover {
     background: transparent;
