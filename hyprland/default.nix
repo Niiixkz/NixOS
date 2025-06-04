@@ -28,5 +28,6 @@
     ./swaync/default.nix
     ./foot/default.nix
     ./miku-cursor/default.nix
+    ./firefox/default.nix
   ];
 }

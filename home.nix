@@ -10,8 +10,6 @@
     userEmail = "niiixkz@gmail.com";
   };
 
-  programs.firefox.enable = true;
-
   imports = [
     ./hyprland/default.nix
     ./tools/default.nix
