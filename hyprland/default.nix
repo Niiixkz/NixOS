@@ -9,8 +9,6 @@
     swww
     pywal
     fd
-
-    wofi
   ];
 
   home.file.".config/hypr/hyprland.conf".source = ./config/hyprland.conf;
@@ -25,6 +23,7 @@
 
   imports = [
     ./waybar/default.nix
+    ./wofi/default.nix
     ./swaync/default.nix
     ./foot/default.nix
     ./miku-cursor/default.nix
