@@ -10,4 +10,8 @@
     executable = true;
   };
   home.file.".config/foot/template.ini".source = ./config/template.ini;
+
+  imports = [
+    ./starship/default.nix
+  ];
 }

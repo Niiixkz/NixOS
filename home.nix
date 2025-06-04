@@ -10,6 +10,8 @@
     userEmail = "niiixkz@gmail.com";
   };
 
+  home.file.".bashrc".source = ./home-config/.bashrc;
+
   imports = [
     ./hyprland/default.nix
     ./tools/default.nix
