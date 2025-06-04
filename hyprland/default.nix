@@ -27,5 +27,6 @@
     ./waybar/default.nix
     ./swaync/default.nix
     ./foot/default.nix
+    ./miku-cursor/default.nix
   ];
 }

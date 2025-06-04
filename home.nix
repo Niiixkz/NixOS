@@ -14,7 +14,6 @@
 
   imports = [
     ./hyprland/default.nix
-    ./miku-cursor/default.nix
     ./tools/default.nix
   ];
 
