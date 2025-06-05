@@ -20,7 +20,7 @@ while true; do
 
 	swaync-client --reload-css
 
-	bash "$CONFIG_DIR/foot/update_colors.sh"
+	cat ~/.cache/wal/foot.ini > ~/.config/foot/foot.ini
 	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
 	pywalfox update
 
