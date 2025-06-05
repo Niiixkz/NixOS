@@ -7,7 +7,6 @@
     dracula-icon-theme
 
     swww
-    pywal
     fd
   ];
 
@@ -28,5 +27,6 @@
     ./foot/default.nix
     ./miku-cursor/default.nix
     ./firefox/default.nix
+    ./pywal/default.nix
   ];
 }
