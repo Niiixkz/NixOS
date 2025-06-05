@@ -72,7 +72,7 @@ format = "[$duration](fg:red)"
 
 [directory]
 format = "[$path](bg:green fg:black)"
-truncation_length = 2
+truncation_length = 8
 truncation_symbol = "…/"
 
 [character]
