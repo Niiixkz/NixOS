@@ -20,7 +20,7 @@ while true; do
 
 	swaync-client --reload-css
 
-	cat ~/.cache/wal/foot.ini > ~/.config/foot/foot.ini
+	cp ~/.cache/wal/foot.ini ~/.config/foot/foot.ini
 	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
 	pywalfox update
 
