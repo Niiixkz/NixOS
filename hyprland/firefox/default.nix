@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   lock-false = {
@@ -14,6 +14,10 @@ in
   home.packages = with pkgs; [
     pywalfox-native
   ];
+
+  home.activation.pywalfoxInstall = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    ${pkgs.pywalfox-native}/bin/pywalfox install
+  '';
 
   programs = {
     firefox = {
