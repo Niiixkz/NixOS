@@ -47,7 +47,6 @@
     git
     file
     home-manager
-    pulseaudio
   ];
 
   programs.hyprland = {
