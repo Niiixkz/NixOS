@@ -329,22 +329,12 @@ trough highlight {
     box-shadow: 0px 0px 5px rgba(0, 0, 0, .5);
     transition: all .7s ease;
 }
-trough highlight:hover {
-    padding: 5px;
-    background: @mycolor;
-    border-radius: 20px;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, 1);
-    transition: all .7s ease;
-}
 
 trough slider {
     all: unset;
     background: transparent;
     min-width: 0;
     min-height: 0;
-}
-trough slider:hover {
-    background: transparent;
 }
 
 .widget-volume {
