@@ -168,6 +168,7 @@ window#waybar.hidden {
 }
 
 #workspaces button {
+    color: @foreground;
     box-shadow: none;
 	text-shadow: none;
     padding: 0px;
@@ -205,6 +206,10 @@ window#waybar.hidden {
 #workspaces button.urgent {
 	color: @color1;
  	border-radius: 0px;
+}
+
+#custom-swaync {
+    color: @foreground;
 }
 
 #taskbar button.active {
