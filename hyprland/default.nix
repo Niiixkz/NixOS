@@ -2,14 +2,26 @@
 
 {
   home.packages = with pkgs; [
-    nwg-look # for gdk cursor and themes
-    catppuccin-gtk
-    dracula-icon-theme
-
     swww
     fd
   ];
 
+  gtk = {
+    enable = true;
+    theme = {
+      name = "Materia-dark";
+      package = pkgs.materia-theme;
+    };
+    iconTheme = {
+      name = "Dracula";
+      package = pkgs.dracula-icon-theme;
+    };
+    cursorTheme = {
+      name = "miku-cursor";
+      size = 28;
+    };
+  };
+    
   home.file.".config/hypr/hyprland.conf".source = ./config/hyprland.conf;
   home.file.".config/hypr/random_wallpaper.sh" = {
     source = ./config/random_wallpaper.sh;
