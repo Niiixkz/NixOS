@@ -8,21 +8,21 @@ if [ $(ps aux | grep bash | grep random_wallpaper.sh | wc -l) -ge 3 ]; then
 fi
 
 while true; do
-	selected_wallpaper=$(
-		find -L "${WALLPAPER_DIR}" -type f | shuf -n 1
-	)
+    selected_wallpaper=$(
+        find -L "${WALLPAPER_DIR}" -type f | shuf -n 1
+    )
 
-	swww img "$selected_wallpaper" --transition-type fade --transition-fps 60 --transition-duration 5
+    swww img "$selected_wallpaper" --transition-type fade --transition-fps 60 --transition-duration 5
 
-	sleep 2
+    sleep 2
 
-	wal -i "$selected_wallpaper" -n 
+    wal -i "$selected_wallpaper" -n
 
-	swaync-client --reload-css
+    swaync-client --reload-css
 
-	cp ~/.cache/wal/foot.ini ~/.config/foot/foot.ini
-	# cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
-	pywalfox update
+    cp ~/.cache/wal/foot.ini ~/.config/foot/foot.ini
+    # cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
+    pywalfox update
 
-	sleep 300
+    sleep 300
 done
