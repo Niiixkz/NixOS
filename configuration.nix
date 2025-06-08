@@ -45,6 +45,7 @@
     neovim
     unzip
     git
+    gcc
     file
     home-manager
   ];
