@@ -5,5 +5,6 @@
     gotop
     dust
     fastfetch
+    inotify-tools
   ];
 }
