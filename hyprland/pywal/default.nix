@@ -3,6 +3,7 @@
 {
   home.packages = with pkgs; [
     pywal
+    imagemagick
   ];
 
   home.file.".config/wal" = {
