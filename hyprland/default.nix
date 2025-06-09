@@ -40,5 +40,6 @@
     ./miku-cursor/default.nix
     ./firefox/default.nix
     ./pywal/default.nix
+    ./nvim/default.nix
   ];
 }
