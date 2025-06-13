@@ -176,12 +176,26 @@
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
 	"persistent-workspaces": {
-		"*": 5
+		"*": 11
 	  },
+	"format-icons": {
+		"1": "1",
+		"2": "2",
+		"3": "3",
+		"4": "4",
+		"5": "5",
+		"6": "6",
+		"7": "7",
+		"8": "8",
+		"9": "9",
+		"10": "0",
+        "11": ""
+	},
 	"format": "{icon} {windows}",
 	"format-window-separator": " ",
 	"window-rewrite-default": " ",
 	"window-rewrite": {		
+        "title<playlist|album_cover|cava|playback_panel>": "",
 		"title<.*amazon.*>": " ",
 		"title<.*reddit.*>": " ",
 

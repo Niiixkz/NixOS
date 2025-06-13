@@ -2,9 +2,13 @@
 
 {
   home.packages = with pkgs; [
+    jq
     gotop
     dust
     fastfetch
+    libnotify
     inotify-tools
+    ffmpeg
+    libsixel
   ];
 }

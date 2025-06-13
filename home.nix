@@ -15,6 +15,7 @@
   imports = [
     ./hyprland/default.nix
     ./tools/default.nix
+    ./music/default.nix
   ];
 
   home.stateVersion = "25.05";
