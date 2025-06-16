@@ -1,5 +1,12 @@
 { config, lib, pkgs, ... }:
 
+let
+  pixel_sakura-sddm-astronaut = pkgs.sddm-astronaut.override {
+    embeddedTheme = "pixel_sakura";
+  };
+
+  arcade-classic-fonts = pkgs.callPackage ./fonts/default.nix { inherit pkgs; };
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -21,7 +28,10 @@
     noto-fonts
     noto-fonts-color-emoji
     nerd-fonts.dejavu-sans-mono
+    arcade-classic-fonts
   ];
+  fonts.fontDir.enable = true;
+  fonts.enableGhostscriptFonts = true;
 
   services.power-profiles-daemon.enable = true;
   services.blueman.enable = true;
@@ -58,6 +68,25 @@
     XDG_RUNTIME_DIR = "/run/user/1000"; # User-id 1000 must match above user. MPD will look inside this directory for the PipeWire socket.
   };
 
+  services.displayManager.sddm = {
+    enable = true;
+    wayland.enable = true;
+    package = pkgs.kdePackages.sddm;
+
+    settings = {
+      General = {
+        GreeterEnvironment = "QT_FONT_DPI=96";
+        CursorTheme = "miku-cursor";
+      };
+    };
+
+    extraPackages = with pkgs; [
+      pixel_sakura-sddm-astronaut
+    ];
+      
+    theme = "sddm-astronaut-theme";
+  };
+
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
@@ -73,6 +102,7 @@
     gcc
     file
     home-manager
+    pixel_sakura-sddm-astronaut
   ];
 
   programs.hyprland = {
