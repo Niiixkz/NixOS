@@ -34,5 +34,3 @@ vim.cmd('highlight BlinkCmpLabelMatch guifg=' .. colors.color5)
 vim.cmd('highlight BlinkCmpLabelDeprecated guifg=' .. colors.foreground .. ' gui=strikethrough')
 vim.cmd('highlight BlinkCmpDocBorder guifg=' .. colors.foreground .. ' guibg=' .. colors.background)
 vim.cmd('highlight BlinkCmpDoc guibg=' .. colors.background)
-
-vim.cmd('TransparentEnable')
