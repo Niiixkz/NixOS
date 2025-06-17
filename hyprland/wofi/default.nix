@@ -1,12 +1,17 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  wofiPath = "${config.home.homeDirectory}/nixos/hyprland/wofi/config";
+in
 
 {
   home.packages = with pkgs; [
     wofi
   ];
 
-  home.file.".config/wofi" = {
-    source = ./config;
-    recursive = true;
-  };
+  xdg.configFile."wofi".source = config.lib.file.mkOutOfStoreSymlink wofiPath;
 }

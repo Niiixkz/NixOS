@@ -1,4 +1,12 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  pywalPath = "${config.home.homeDirectory}/nixos/hyprland/pywal/config";
+in
 
 {
   home.packages = with pkgs; [
@@ -6,8 +14,5 @@
     imagemagick
   ];
 
-  home.file.".config/wal" = {
-    source = ./config;
-    recursive = true;
-  };
+  xdg.configFile."wal".source = config.lib.file.mkOutOfStoreSymlink pywalPath;
 }

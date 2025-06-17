@@ -1,5 +1,12 @@
-{ config, pkgs, lib, ... }:
-
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  bashrcPath = "${config.home.homeDirectory}/nixos/home-config/.bashrc";
+in
 {
   home.username = "niiixkz";
   home.homeDirectory = "/home/niiixkz";
@@ -10,7 +17,8 @@
     userEmail = "niiixkz@gmail.com";
   };
 
-  home.file.".bashrc".source = ./home-config/.bashrc;
+  xdg.configFile."${config.home.homeDirectory}/.bashrc".source =
+    config.lib.file.mkOutOfStoreSymlink bashrcPath;
 
   imports = [
     ./hyprland/default.nix

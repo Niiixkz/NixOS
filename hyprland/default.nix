@@ -1,5 +1,12 @@
-{ config, pkgs, lib, ... }:
-
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  hyprlandPath = "${config.home.homeDirectory}/nixos/hyprland/config";
+in
 {
   home.packages = with pkgs; [
     swww
@@ -21,16 +28,8 @@
       size = 28;
     };
   };
-    
-  home.file.".config/hypr/hyprland.conf".source = ./config/hyprland.conf;
-  home.file.".config/hypr/random_wallpaper.sh" = {
-    source = ./config/random_wallpaper.sh;
-    executable = true;
-  };
-  home.file.".config/hypr/wallpapers" = {
-    source = ./config/wallpapers;
-    recursive = true;
-  };
+
+  xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink hyprlandPath;
 
   imports = [
     ./waybar/default.nix

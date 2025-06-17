@@ -1,12 +1,17 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  waybarPath = "${config.home.homeDirectory}/nixos/hyprland/waybar/config";
+in
 
 {
   home.packages = with pkgs; [
     waybar
   ];
 
-  home.file.".config/waybar" = {
-    source = ./config;
-    recursive = true;
-  };
+  xdg.configFile."waybar".source = config.lib.file.mkOutOfStoreSymlink waybarPath;
 }

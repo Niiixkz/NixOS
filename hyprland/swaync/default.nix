@@ -1,12 +1,17 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  swayncPath = "${config.home.homeDirectory}/nixos/hyprland/swaync/config";
+in
 
 {
   home.packages = with pkgs; [
     swaynotificationcenter
   ];
 
-  home.file.".config/swaync/" = {
-    source = ./config;
-    recursive = true;
-  };
+  xdg.configFile."swaync".source = config.lib.file.mkOutOfStoreSymlink swayncPath;
 }

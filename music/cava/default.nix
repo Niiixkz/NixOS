@@ -1,9 +1,16 @@
-{ config, pkgs, lib, ... }:
-
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+let
+  cavaPath = "${config.home.homeDirectory}/nixos/music/cava/config";
+in
 {
   home.packages = with pkgs; [
     cava
   ];
 
-  home.file.".config/cava/my_config".source = ./config/my_config;
+  xdg.configFile."cava".source = config.lib.file.mkOutOfStoreSymlink cavaPath;
 }

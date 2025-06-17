@@ -23,7 +23,7 @@ if [[ "$current_ws" == "$music_ws" && "$all_running" == true ]]; then
         pkill -f "foot.*--title $title"
     done
 
-    hyprctl dispatch workspace $(cat "$HOME/.config/ncmpcpp/PreviousWorkspace")
+    hyprctl dispatch workspace $(cat "/tmp/NcmpcppPreviousWorkspace")
 else
     mpc repeat on
     mpc crossfade 5
@@ -35,5 +35,5 @@ else
         fi
     done
 
-    echo "$current_ws" >"$HOME/.config/ncmpcpp/PreviousWorkspace"
+    echo "$current_ws" >"/tmp/NcmpcppPreviousWorkspace"
 fi

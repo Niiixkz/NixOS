@@ -1,9 +1,11 @@
 { config, pkgs, ... }:
-
+let
+  starshipPath = "${config.home.homeDirectory}/nixos/hyprland/foot/starship/config/starship.toml";
+in
 {
   home.packages = with pkgs; [
     starship
   ];
 
-  home.file.".config/starship.toml".source = ./config/starship.toml;
+  xdg.configFile."starship.toml".source = config.lib.file.mkOutOfStoreSymlink starshipPath;
 }

@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   pixel_sakura-sddm-astronaut = pkgs.sddm-astronaut.override {
@@ -6,6 +11,21 @@ let
   };
 
   arcade-classic-fonts = pkgs.callPackage ./fonts/default.nix { inherit pkgs; };
+
+  nixfmt-tree-withConfig = pkgs.nixfmt-tree.override {
+
+    runtimeInputs = [ pkgs.nixfmt-rfc-style ];
+
+    settings = {
+      on-unmatched = "info";
+
+      formatter.nixfmt = {
+
+        command = "nixfmt";
+        include = [ "*.nix" ];
+      };
+    };
+  };
 in
 {
   imports = [
@@ -15,7 +35,10 @@ in
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 
   networking.hostName = "NixOS";
   networking.networkmanager.enable = true;
@@ -46,18 +69,18 @@ in
     enable = true;
     musicDirectory = "/home/niiixkz/Music";
     extraConfig = ''
-    audio_output {
-        type "pipewire"
-        name "My PipeWire Output"
-    }
+      audio_output {
+          type "pipewire"
+          name "My PipeWire Output"
+      }
 
-    audio_output {
-      type "fifo"
-      name "My FIFO"
-      path "/tmp/mpd.fifo"
-    }
+      audio_output {
+        type "fifo"
+        name "My FIFO"
+        path "/tmp/mpd.fifo"
+      }
 
-    replaygain "track"
+      replaygain "track"
 
     '';
     user = "niiixkz";
@@ -83,7 +106,7 @@ in
     extraPackages = with pkgs; [
       pixel_sakura-sddm-astronaut
     ];
-      
+
     theme = "sddm-astronaut-theme";
   };
 
@@ -103,6 +126,7 @@ in
     file
     home-manager
     pixel_sakura-sddm-astronaut
+    nixfmt-tree-withConfig
   ];
 
   programs.hyprland = {
@@ -113,4 +137,3 @@ in
 
   system.stateVersion = "25.05";
 }
-
