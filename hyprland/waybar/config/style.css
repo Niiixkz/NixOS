@@ -12,7 +12,7 @@ padding: 0.03125rem;
 }
 
 /*@import "../waybar/style/catppuccin-themes/mocha.css";*/
-@import url('../../.cache/wal/colors-waybar.css');
+@import url('/home/niiixkz/.cache/wal/colors-waybar.css');
 
 window#waybar {
   transition-property: background-color;
