@@ -3,3 +3,7 @@ error.log
 
 # nvim
 lazy-lock.json
+
+# cava
+*.frag
+*.vert
