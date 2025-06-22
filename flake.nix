@@ -3,6 +3,8 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,6 +16,7 @@
       self,
       nixpkgs,
       home-manager,
+      nixos-hardware,
       ...
     }:
     let
@@ -28,6 +31,7 @@
           inherit system;
           modules = [
             ./configuration.nix
+            nixos-hardware.nixosModules.asus-zephyrus-ga401
 
             home-manager.nixosModules.home-manager
             {

@@ -40,6 +40,8 @@ in
     "flakes"
   ];
 
+  nixpkgs.config.allowUnfree = true;
+
   networking.hostName = "NixOS";
   networking.networkmanager.enable = true;
 
