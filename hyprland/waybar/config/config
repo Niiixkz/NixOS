@@ -16,7 +16,9 @@
   "margin-left": 20,
   "margin-right": 20,
   "modules-left": [
-    "clock"
+    "custom/lock",
+    "clock",
+    "battery#forest"
   ],
   "modules-center": [
     "hyprland/workspaces#rw",
@@ -28,9 +30,7 @@
     "bluetooth",
     "cpu#forest",
     "memory#forest",
-    "disk#forest",
-    "custom/lock"
-    // remove battery and temprature because in VM
+    "disk#forest"
   ],
   "battery#forest": {
     "align": 0,
@@ -42,7 +42,7 @@
       "warning": 30,
       "critical": 15
     },
-    "format": "Battery {icon}  {capacity}%",
+    "format": "{icon}  {capacity}%",
     "format-charging": "Battery  {capacity}%",
     "format-plugged": "Battery 󱘖 {capacity}%",
     "format-alt-click": "click",

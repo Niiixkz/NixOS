@@ -31,7 +31,6 @@
           inherit system;
           modules = [
             ./configuration.nix
-            nixos-hardware.nixosModules.asus-zephyrus-ga401
 
             home-manager.nixosModules.home-manager
             {
