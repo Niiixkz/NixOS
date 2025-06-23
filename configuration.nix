@@ -42,6 +42,10 @@ in
 
   nixpkgs.config.allowUnfree = true;
 
+  hardware.nvidia = {
+    dynamicBoost.enable = false;
+  };
+
   networking.hostName = "NixOS";
   networking.networkmanager.enable = true;
 
