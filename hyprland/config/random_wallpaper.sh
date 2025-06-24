@@ -10,12 +10,28 @@ update_nvim() {
     done
 }
 
-# -ge 3 because original, current and grep process
-if [ $(ps aux | grep bash | grep random_wallpaper.sh | wc -l) -ge 3 ]; then
+stop_changing_wallpaper_process_list=("osu!" "hyprlock")
+
+check_any_stop_changing_wallpaper_process_exist() {
+    for process in "${stop_changing_wallpaper_process_list[@]}"; do
+        if pgrep -f "$process" >/dev/null; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# original, current and $() will open a subprocess or something so count increase 1
+if [ $(pgrep -f 'bash random_wallpaper.sh' | wc -l) -ge 3 ]; then
     exit 1
 fi
 
 while true; do
+    if check_any_stop_changing_wallpaper_process_exist; then
+        sleep 300
+        continue
+    fi
+
     selected_wallpaper=$(
         find -L "${WALLPAPER_DIR}" -type f | shuf -n 1
     )
