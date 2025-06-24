@@ -24,6 +24,7 @@ in
     ./hyprland/default.nix
     ./tools/default.nix
     ./music/default.nix
+    ./game/default.nix
   ];
 
   home.stateVersion = "25.05";
