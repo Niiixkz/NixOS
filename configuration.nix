@@ -121,7 +121,10 @@ in
 
   users.users.niiixkz = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+    ];
   };
 
   environment.systemPackages = with pkgs; [
