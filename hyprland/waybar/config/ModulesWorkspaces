@@ -196,6 +196,7 @@
 	"window-rewrite-default": " ",
 	"window-rewrite": {		
         "title<playlist|album_cover|cava|playback_panel>": "",
+        "title<osu!>":"󰺷 ",
 		"title<.*amazon.*>": " ",
 		"title<.*reddit.*>": " ",
 
