@@ -9,6 +9,8 @@ let
 in
 {
   home.packages = with pkgs; [
+    hyprlock
+
     swww
     fd
   ];
