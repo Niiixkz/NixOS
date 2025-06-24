@@ -10,5 +10,6 @@
     inotify-tools
     ffmpeg
     libsixel
+    p7zip
   ];
 }
