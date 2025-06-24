@@ -44,11 +44,9 @@
       "critical": 15
     },
     "format": "{icon}  {capacity}%",
-    "format-charging": "Battery  {capacity}%",
-    "format-plugged": "Battery 󱘖 {capacity}%",
-    "format-alt-click": "click",
-    "format-full": "Battery {icon} Full",
-    "format-alt": "Battery {icon} {time}",
+    "format-charging": " {capacity}%",
+    "format-plugged": "󱘖 {capacity}%",
+    "format-full": "{icon} {capacity}%",
     "format-icons": [
       "󰂎",
       "󰁺",
