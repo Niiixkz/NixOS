@@ -14,7 +14,7 @@ check_any_stop_changing_wallpaper_process_exist() {
 }
 
 # original, current and $() will open a subprocess or something so count increase 1
-if [ $(pgrep -f 'bash random_wallpaper.sh' | wc -l) -ge 3 ]; then
+if [ $(pgrep -f random_wallpaper.sh | wc -l) -ge 3 ]; then
     exit 1
 fi
 
