@@ -16,5 +16,6 @@
 
   imports = [
     ./starship/default.nix
+    ./fish/default.nix
   ];
 }

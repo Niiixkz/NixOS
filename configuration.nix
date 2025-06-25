@@ -125,6 +125,7 @@ in
       "wheel"
       "networkmanager"
     ];
+    shell = pkgs.fish;
   };
 
   environment.systemPackages = with pkgs; [
@@ -142,6 +143,10 @@ in
     enable = true;
     withUWSM = true;
     xwayland.enable = true;
+  };
+
+  programs.fish = {
+    enable = true;
   };
 
   system.stateVersion = "25.05";
