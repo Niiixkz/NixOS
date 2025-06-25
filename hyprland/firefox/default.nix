@@ -75,6 +75,18 @@ in
             installation_mode = "force_installed";
             private_browsing = true;
           };
+          # YouTube 繁體自動翻譯修正
+          "yuanchuang940@gmail.com" = {
+            install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-繁體自動翻譯修正/latest.xpi";
+            installation_mode = "force_installed";
+            private_browsing = true;
+          };
+          # youtube-找回留言區用戶名稱
+          "yuanchuang940@gmail.com_return-yt-comment-usernames" = {
+            install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-找回留言區用戶名稱/latest.xpi";
+            installation_mode = "force_installed";
+            private_browsing = true;
+          };
         };
 
         # ---- PREFERENCES ----
