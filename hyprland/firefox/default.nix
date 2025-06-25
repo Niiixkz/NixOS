@@ -57,6 +57,11 @@ in
         # "force_installed" and "normal_installed".
         ExtensionSettings = {
           "*".installation_mode = "blocked"; # blocks all addons except the ones specified below
+          # Firefox Multi-Account Containers
+          "@testpilot-containers" = {
+            install_url = "https://addons.mozilla.org/firefox/downloads/latest/multi-account-containers/latest.xpi";
+            installation_mode = "force_installed";
+          };
           # uBlock Origin:
           "uBlock0@raymondhill.net" = {
             install_url = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi";
@@ -81,7 +86,7 @@ in
             installation_mode = "force_installed";
             private_browsing = true;
           };
-          # youtube-找回留言區用戶名稱
+          # youtube 找回留言區用戶名稱
           "yuanchuang940@gmail.com_return-yt-comment-usernames" = {
             install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-找回留言區用戶名稱/latest.xpi";
             installation_mode = "force_installed";
