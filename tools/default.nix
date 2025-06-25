@@ -11,5 +11,6 @@
     ffmpeg
     libsixel
     p7zip
+    brightnessctl
   ];
 }
