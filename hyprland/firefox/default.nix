@@ -47,7 +47,7 @@ in
         OverrideFirstRunPage = "";
         OverridePostUpdatePage = "";
         DontCheckDefaultBrowser = true;
-        DisplayBookmarksToolbar = "never"; # alternatives: "always" or "newtab"
+        DisplayBookmarksToolbar = "newtab"; # alternatives: "always" or "newtab"
         DisplayMenuBar = "default-off"; # alternatives: "always", "never" or "default-on"
         SearchBar = "unified"; # alternative: "separate"
 
@@ -119,6 +119,46 @@ in
           "browser.newtabpage.activity-stream.system.showSponsored" = lock-false;
           "browser.newtabpage.activity-stream.showSponsoredTopSites" = lock-false;
         };
+
+        # ---- BOOKMARKS ----
+        Bookmarks = [
+          {
+            Folder = "Work";
+            Title = "NixOS packages";
+            URL = "https://search.nixos.org/packages";
+            Placement = "toolbar";
+          }
+          {
+            Folder = "Work";
+            Title = "NixOS home-manager";
+            URL = "https://nix-community.github.io/home-manager/options.xhtml";
+            Placement = "toolbar";
+          }
+          {
+            Folder = "Work";
+            Title = "Github";
+            URL = "https://github.com/";
+            Placement = "toolbar";
+          }
+          {
+            Folder = "Casual";
+            Title = "Youtube";
+            URL = "https://www.youtube.com";
+            Placement = "toolbar";
+          }
+          {
+            Folder = "Casual";
+            Title = "Twitch";
+            URL = "https://www.twitch.tv/";
+            Placement = "toolbar";
+          }
+          {
+            Folder = "Casual";
+            Title = "Doujinstyle";
+            URL = "https://doujinstyle.com";
+            Placement = "toolbar";
+          }
+        ];
       };
     };
   };
