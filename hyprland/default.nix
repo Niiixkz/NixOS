@@ -13,6 +13,8 @@ in
 
     swww
     fd
+
+    discord
   ];
 
   gtk = {
