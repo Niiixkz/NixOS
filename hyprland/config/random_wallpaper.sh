@@ -2,15 +2,7 @@
 WALLPAPER_DIR="$HOME/.config/hypr/wallpapers"
 CONFIG_DIR="$HOME/.config"
 
-update_nvim() {
-    for sock in /tmp/nvim-pywal-*.sock; do
-        if [ -S "$sock" ]; then
-            nvim --server "$sock" --remote-send "<Esc>:luafile $HOME/.cache/wal/colors-nvim-plugins.lua<CR>"
-        fi
-    done
-}
-
-stop_changing_wallpaper_process_list=("osu!" "hyprlock")
+stop_changing_wallpaper_process_list=("osu!" "hyprlock" "neovim")
 
 check_any_stop_changing_wallpaper_process_exist() {
     for process in "${stop_changing_wallpaper_process_list[@]}"; do
@@ -46,8 +38,6 @@ while true; do
 
     cp ~/.cache/wal/foot.ini ~/.config/foot/foot.ini
     # cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
-
-    update_nvim
 
     pywalfox update
 

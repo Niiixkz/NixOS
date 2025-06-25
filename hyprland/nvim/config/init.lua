@@ -13,8 +13,6 @@ require("lualine").setup {
     }
 }
 
-local pid = vim.fn.getpid()
-vim.fn.serverstart("/tmp/nvim-pywal-" .. pid .. ".sock")
 
 local colors = require("pywal.core").get_colors()
 
