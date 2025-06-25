@@ -15,6 +15,7 @@ in
     fd
 
     discord
+    obs-studio
   ];
 
   gtk = {
