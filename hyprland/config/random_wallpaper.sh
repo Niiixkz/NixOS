@@ -18,6 +18,9 @@ if [ $(pgrep -f random_wallpaper.sh | wc -l) -ge 3 ]; then
     exit 1
 fi
 
+# wait for login
+sleep 3
+
 while true; do
     if check_any_stop_changing_wallpaper_process_exist; then
         sleep 300
