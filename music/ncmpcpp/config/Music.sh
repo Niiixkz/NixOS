@@ -7,8 +7,8 @@ declare -A windows=(
     [cava]="foot --title cava -o font=\"DejaVu Sans Mono:size=8\" cava -p $HOME/.config/cava/my_config &"
 )
 
-current_ws=$(hyprctl activeworkspace -j | jq '.id')
-music_ws=11
+current_ws=$(hyprctl monitors -j | jq -r '.[] | select(.name == "eDP-1") | .activeWorkspace.id')
+music_ws=100
 
 all_running=true
 for title in "${!windows[@]}"; do

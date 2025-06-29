@@ -1,86 +1,96 @@
-{
-  "include": [
-    "$HOME/.config/waybar/Modules",
-    "$HOME/.config/waybar/ModulesWorkspaces",
-    "$HOME/.config/waybar/ModulesCustom"
-  ],
-  "layer": "top",
-  "exclusive": true,
-  "passthrough": false,
-  "position": "top",
-  "spacing": 3,
-  "fixed-center": true,
-  "ipc": true,
-  "reload_style_on_change": true,
-  "margin-top": 3,
-  "margin-left": 20,
-  "margin-right": 20,
-  "modules-left": [
-    "custom/lock",
-    "clock",
-    "battery#forest",
-    "temperature"
-  ],
-  "modules-center": [
-    "hyprland/workspaces#rw",
-    "custom/separator#dot-line",
-    "custom/swaync"
-  ],
-  "modules-right": [
-    "network#speed",
-    "bluetooth",
-    "cpu#forest",
-    "memory#forest",
-    "disk#forest"
-  ],
-  "battery#forest": {
-    "align": 0,
-    "rotate": 0,
-    "full-at": 100,
-    "design-capacity": false,
-    "states": {
-      "good": 95,
-      "warning": 30,
-      "critical": 15
-    },
-    "format": "{icon}  {capacity}%",
-    "format-charging": " {capacity}%",
-    "format-plugged": "󱘖 {capacity}%",
-    "format-full": "{icon} {capacity}%",
-    "format-icons": [
-      "󰂎",
-      "󰁺",
-      "󰁻",
-      "󰁼",
-      "󰁽",
-      "󰁾",
-      "󰁿",
-      "󰂀",
-      "󰂁",
-      "󰂂",
-      "󰁹"
+[
+  {
+    "output": "eDP-1",
+    "include": [
+      "$HOME/.config/waybar/Modules",
+      "$HOME/.config/waybar/ModulesWorkspaces"
     ],
-    "format-time": "{H}h {M}min",
-    "tooltip": true,
-    "tooltip-format": "{timeTo} {power}w",
+    "layer": "top",
+    "exclusive": true,
+    "passthrough": false,
+    "position": "top",
+    "spacing": 3,
+    "fixed-center": true,
+    "ipc": true,
+    "reload_style_on_change": true,
+    "margin-top": 3,
+    "margin-left": 20,
+    "margin-right": 20,
+    "modules-left": [
+      "clock",
+      "battery",
+      "temperature",
+      "wireplumber",
+      "pulseaudio#microphone"
+    ],
+    "modules-center": [
+      "hyprland/workspaces",
+      "custom/separator",
+      "custom/swaync"
+    ],
+    "modules-right": [
+      "network",
+      "bluetooth",
+      "cpu",
+      "memory",
+      "disk"
+    ]
   },
-  "cpu#forest": {
-    "format": "󰍛  {usage}%",
-    "interval": 1,
-    "min-length": 5,
-    "on-click": "foot sh -c 'gotop'"
+  {
+    "output": "HDMI-A-1",
+    "include": [
+      "$HOME/.config/waybar/Modules",
+      "$HOME/.config/waybar/ModulesWorkspaces"
+    ],
+    "layer": "top",
+    "exclusive": true,
+    "passthrough": false,
+    "position": "top",
+    "spacing": 3,
+    "fixed-center": true,
+    "ipc": true,
+    "reload_style_on_change": true,
+    "margin-top": 3,
+    "margin-left": 20,
+    "margin-right": 20,
+    "modules-left": [
+      "clock",
+      "battery",
+      "temperature",
+      "wireplumber",
+      "pulseaudio#microphone"
+    ],
+    "modules-center": [
+      "hyprland/workspaces",
+      "custom/separator",
+      "custom/swaync"
+    ],
+    "modules-right": [
+      "network",
+      "bluetooth",
+      "cpu",
+      "memory",
+      "disk"
+    ]
   },
-  "disk#forest": {
-    "interval": 30,
-    "path": "/",
-    "format": "󰋊  {used}",
-    "on-click": "foot sh -c 'gotop'"
-  },
-  "memory#forest": {
-    "interval": 10,
-    "format": "  {used:0.1f}G",
-    "tooltip": true,
-    "tooltip-format": "Ram    {used:0.1f}GB/{total:0.1f}G",
-    "on-click": "foot sh -c 'gotop'"
+  {
+    "output": "DP-1",
+    "include": [
+      "$HOME/.config/waybar/ModulesWorkspaces"
+    ],
+    "layer": "top",
+    "exclusive": true,
+    "passthrough": false,
+    "position": "top",
+    "spacing": 3,
+    "fixed-center": true,
+    "ipc": true,
+    "reload_style_on_change": true,
+    "margin-top": 3,
+    "margin-left": 20,
+    "margin-right": 20,
+    "modules-center": [
+      "hyprland/workspaces"
+    ]
   }
-}
+]
