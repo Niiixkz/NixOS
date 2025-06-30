@@ -13,6 +13,7 @@
       addons = with pkgs; [
         fcitx5-rime
         rime-data
+        fcitx5-gtk
       ];
       settings = {
         globalOptions = {

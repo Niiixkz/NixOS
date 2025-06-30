@@ -46,6 +46,8 @@
     "window-rewrite": {
       "title<playlist|album_cover|cava|playback_panel>": "",
       "title<osu!.*>": "󰺷 ",
+      "class<steam_proton>": "",
+      "title<LINE>": " ",
       "title<.*amazon.*>": " ",
       "title<.*reddit.*>": " ",
       "class<firefox|org.mozilla.firefox|librewolf|floorp|mercury-browser|[Cc]achy-browser>": " ",
