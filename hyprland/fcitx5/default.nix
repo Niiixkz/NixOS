@@ -5,7 +5,7 @@
   ...
 }:
 let
-  fcitx5Path = "${config.home.homeDirectory}/nixos/hyprland/fcitx5/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/fcitx5/config";
 in
 {
   i18n.inputMethod = {
@@ -21,5 +21,5 @@ in
     };
   };
 
-  xdg.configFile."fcitx5".source = config.lib.file.mkOutOfStoreSymlink fcitx5Path;
+  xdg.configFile."fcitx5".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

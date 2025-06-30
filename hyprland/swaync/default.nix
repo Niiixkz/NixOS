@@ -5,7 +5,7 @@
   ...
 }:
 let
-  swayncPath = "${config.home.homeDirectory}/nixos/hyprland/swaync/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/swaync/config";
 in
 
 {
@@ -13,5 +13,5 @@ in
     swaynotificationcenter
   ];
 
-  xdg.configFile."swaync".source = config.lib.file.mkOutOfStoreSymlink swayncPath;
+  xdg.configFile."swaync".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

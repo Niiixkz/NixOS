@@ -5,7 +5,7 @@
   ...
 }:
 let
-  waybarPath = "${config.home.homeDirectory}/nixos/hyprland/waybar/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/waybar/config";
 in
 
 {
@@ -13,5 +13,5 @@ in
     waybar
   ];
 
-  xdg.configFile."waybar".source = config.lib.file.mkOutOfStoreSymlink waybarPath;
+  xdg.configFile."waybar".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

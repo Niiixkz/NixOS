@@ -5,7 +5,7 @@
   ...
 }:
 let
-  hyprlandPath = "${config.home.homeDirectory}/nixos/hyprland/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/config";
 in
 {
   home.packages = with pkgs; [
@@ -46,7 +46,7 @@ in
     };
   };
 
-  xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink hyprlandPath;
+  xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink configPath;
 
   imports = [
     ./waybar/default.nix

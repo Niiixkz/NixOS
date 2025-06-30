@@ -5,7 +5,7 @@
   ...
 }:
 let
-  pywalPath = "${config.home.homeDirectory}/nixos/hyprland/pywal/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/pywal/config";
 in
 
 {
@@ -14,5 +14,5 @@ in
     imagemagick
   ];
 
-  xdg.configFile."wal".source = config.lib.file.mkOutOfStoreSymlink pywalPath;
+  xdg.configFile."wal".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

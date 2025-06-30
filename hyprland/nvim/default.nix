@@ -5,7 +5,7 @@
   ...
 }:
 let
-  nvimPath = "${config.home.homeDirectory}/nixos/hyprland/nvim/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/nvim/config";
 in
 
 {
@@ -13,5 +13,5 @@ in
     neovim
   ];
 
-  xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink nvimPath;
+  xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

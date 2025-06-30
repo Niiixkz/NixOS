@@ -5,7 +5,7 @@
   ...
 }:
 let
-  wofiPath = "${config.home.homeDirectory}/nixos/hyprland/wofi/config";
+  configPath = "${config.home.homeDirectory}/NixOS/hyprland/wofi/config";
 in
 
 {
@@ -13,5 +13,5 @@ in
     wofi
   ];
 
-  xdg.configFile."wofi".source = config.lib.file.mkOutOfStoreSymlink wofiPath;
+  xdg.configFile."wofi".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }
