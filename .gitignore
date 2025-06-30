@@ -10,3 +10,6 @@ lazy-lock.json
 # cava
 *.frag
 *.vert
+
+# fcitx5
+cached_layouts
