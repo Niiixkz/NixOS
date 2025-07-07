@@ -84,10 +84,10 @@ in
         type "fifo"
         name "My FIFO"
         path "/tmp/mpd.fifo"
+        format "44100:16:2"
       }
 
       replaygain "track"
-
     '';
     user = "niiixkz";
     startWhenNeeded = true; # systemd feature: only start MPD service upon connection to its socket

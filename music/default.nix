@@ -8,6 +8,10 @@
 {
   home.packages = with pkgs; [
     mpc
+    loudgain
+    eyed3
+    flac
+    clementine
   ];
 
   imports = [
