@@ -138,6 +138,7 @@ in
     pixel_sakura-sddm-astronaut
     nixfmt-tree-withConfig
     bottles
+    rar
   ];
 
   programs.hyprland = {
