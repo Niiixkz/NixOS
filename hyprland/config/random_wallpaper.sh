@@ -18,6 +18,23 @@ if [ $(pgrep -f random_wallpaper.sh | wc -l) -ge 3 ]; then
     exit 1
 fi
 
+better_discord_status=$(betterdiscordctl status)
+
+if echo "$better_discord_status" | grep -q "BetterDiscord asar installed: (symbolic link) no" ||
+    echo "$better_discord_status" | grep -q "Discord \"index.js\" injected: no"; then
+
+    theme_dir="$CONFIG_DIR/BetterDiscord/themes"
+    if [ ! -d "$theme_dir" ]; then
+        mkdir -p "$theme_dir"
+    fi
+
+    error_output=$(betterdiscordctl reinstall 2>&1)
+
+    if echo "$error_output" | grep -q "Not installed."; then
+        betterdiscordctl install
+    fi
+fi
+
 # wait for login
 sleep 3
 
@@ -41,6 +58,8 @@ while true; do
 
     cp ~/.cache/wal/foot.ini ~/.config/foot/foot.ini
     # cat ~/.cache/wal/colors-kitty.conf > ~/.config/kitty/current-theme.conf
+
+    cp ~/.cache/wal/discord.theme.css ~/.config/BetterDiscord/themes/
 
     pywalfox update
 

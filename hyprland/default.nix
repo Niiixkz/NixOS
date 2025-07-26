@@ -15,6 +15,8 @@ in
     fd
 
     discord
+    betterdiscordctl
+
     obs-studio
   ];
 
