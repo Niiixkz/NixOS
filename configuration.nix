@@ -35,6 +35,11 @@ in
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  boot.kernelParams = [
+    "nvidia-drm.modeset=1"
+    "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
+  ];
+
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
@@ -43,6 +48,8 @@ in
   nixpkgs.config.allowUnfree = true;
 
   hardware.nvidia = {
+    modesetting.enable = true;
+    powerManagement.enable = true;
     dynamicBoost.enable = false;
   };
 
