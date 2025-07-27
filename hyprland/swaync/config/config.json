@@ -1,11 +1,11 @@
 {
-    "$schema": "/etc/xdg/swaync/configSchema.json",
+    "$schema": "/etc/profiles/per-user/niiixkz/etc/xdg/swaync/configSchema.json",
     "positionX": "right",
     "positionY": "bottom",
     "layer": "overlay",
     "control-center-layer": "top",
     "layer-shell": true,
-    "cssPriority": "application",
+    "cssPriority": "user",
     "control-center-width": 350,
     "control-center-margin-top": 8,
     "control-center-margin-bottom": 8,
@@ -45,7 +45,6 @@
             "max-lines":1,
             "text": "Notification Center!"
         },
-
         "mpris": {
             "image-size": 80,
             "image-radius": 0
@@ -59,25 +58,6 @@
         },
         "buttons-grid": {
             "actions": [
-                {
-                    "label": "󰝟",
-                    "command": "wpctl set-mute @DEFAULT_SINK@ toggle",
-                    "type": "toggle"
-                },
-                {
-                    "label": "󰍭",
-                    "command": "wpctl set-mute @DEFAULT_SOURCE@ toggle",
-                    "type": "toggle"
-                },
-
-                {
-                    "label": " ",
-                    "command": "foot nmtui"
-                },
-                {
-                    "label": "",
-                    "command": "blueman-manager"
-                },
                 {
                     "label":"󰤄",
                     "command": "swaync-client -d",
@@ -95,7 +75,6 @@
                     "label":"",
                     "command": "shutdown now"
                 }
-
             ]
         }
     }
