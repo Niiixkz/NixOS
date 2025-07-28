@@ -40,6 +40,8 @@ in
     "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
   ];
 
+  boot.resumeDevice = "/dev/disk/by-uuid/bbe769ab-4bd3-4c68-a7c8-fc176e0e1d2b";
+
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
