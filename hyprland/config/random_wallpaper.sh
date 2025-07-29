@@ -44,15 +44,22 @@ while true; do
         continue
     fi
 
-    selected_wallpaper=$(
-        find -L "${WALLPAPER_DIR}" -type f | shuf -n 1
-    )
+    folders=("$WALLPAPER_DIR"/*/)
+    total=${#folders[@]}
 
-    swww img "$selected_wallpaper" --transition-type fade --transition-fps 60 --transition-duration 5
+    random_index=$((RANDOM % total))
+    selected="${folders[$random_index]}"
+
+    hor_image=$(find "$selected" -maxdepth 1 -type f -name "H.*")
+    vec_image=$(find "$selected" -maxdepth 1 -type f -name "V.*")
+
+    swww img "$hor_image" --outputs eDP-1 --transition-type fade --transition-fps 30 --transition-duration 5 --transition-step 200
+    swww img "$hor_image" --outputs HDMI-A-1 --transition-type fade --transition-fps 30 --transition-duration 5 --transition-step 200
+    swww img "$vec_image" --outputs DP-1 --transition-type fade --transition-fps 30 --transition-duration 5 --transition-step 200
 
     sleep 2
 
-    wal -i "$selected_wallpaper" -n
+    wal -i "$hor_image" -n
 
     swaync-client --reload-css
 
