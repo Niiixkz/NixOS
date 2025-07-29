@@ -60,5 +60,6 @@ in
     ./pywal/default.nix
     ./nvim/default.nix
     ./fcitx5/default.nix
+    ./wlogout/default.nix
   ];
 }
