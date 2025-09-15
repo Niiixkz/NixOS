@@ -42,9 +42,9 @@ in
 
   boot.resumeDevice = "/dev/disk/by-uuid/bbe769ab-4bd3-4c68-a7c8-fc176e0e1d2b";
 
-  services.logind = {
-    suspendKey = "ignore";
-    suspendKeyLongPress = "ignore";
+  services.logind.settings.Login = {
+    HandleSuspendKey = "ignore";
+    HandleSuspendKeyLongPress = "ignore";
   };
 
   nix.settings.experimental-features = [
