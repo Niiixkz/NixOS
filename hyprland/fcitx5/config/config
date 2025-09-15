@@ -8,11 +8,11 @@ OverrideXkbOption=False
 PreeditEnabledByDefault=True
 PreloadInputMethod=True
 ShareInputState=All
-ShowFirstInputMethodInformation=True
-ShowInputMethodInformation=True
+ShowFirstInputMethodInformation=False
+ShowInputMethodInformation=False
 ShowPreeditForPassword=False
 resetStateWhenFocusIn=No
-showInputMethodInformationWhenFocusIn=True
+showInputMethodInformationWhenFocusIn=False
 
 [Hotkey]
 EnumerateSkipFirst=False

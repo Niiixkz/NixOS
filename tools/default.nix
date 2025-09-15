@@ -12,5 +12,8 @@
     libsixel
     p7zip
     brightnessctl
+    socat
+    wl-clipboard
+    cliphist
   ];
 }

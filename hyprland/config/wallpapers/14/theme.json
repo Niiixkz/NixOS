@@ -1,0 +1,28 @@
+{
+    "wallpaper": "/home/niiixkz/.config/eww/wallpapers/14/H.jpg",
+    "alpha": "100",
+
+    "special": {
+        "background": "#181e1a",
+        "foreground": "#e5e9e5",
+        "cursor": "#e5e9e5"
+    },
+    "colors": {
+        "color0": "#181e1a",
+        "color1": "#9EB19F",
+        "color2": "#E3AAA2",
+        "color3": "#ADC9B3",
+        "color4": "#DCCBB1",
+        "color5": "#B5D0CA",
+        "color6": "#CAD9D2",
+        "color7": "#e5e9e5",
+        "color8": "#a0a3a0",
+        "color9": "#9EB19F",
+        "color10": "#E3AAA2",
+        "color11": "#ADC9B3",
+        "color12": "#DCCBB1",
+        "color13": "#B5D0CA",
+        "color14": "#CAD9D2",
+        "color15": "#e5e9e5"
+    }
+}

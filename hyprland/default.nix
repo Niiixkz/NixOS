@@ -51,15 +51,11 @@ in
   xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink configPath;
 
   imports = [
-    ./waybar/default.nix
-    ./wofi/default.nix
-    ./swaync/default.nix
     ./foot/default.nix
     ./miku-cursor/default.nix
     ./firefox/default.nix
     ./pywal/default.nix
     ./nvim/default.nix
     ./fcitx5/default.nix
-    ./wlogout/default.nix
   ];
 }

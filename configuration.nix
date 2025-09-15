@@ -72,6 +72,7 @@ in
     noto-fonts-color-emoji
     nerd-fonts.dejavu-sans-mono
     arcade-classic-fonts
+    material-symbols
   ];
   fonts.fontDir.enable = true;
   fonts.enableGhostscriptFonts = true;
