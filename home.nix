@@ -5,58 +5,41 @@
   inputs,
   ...
 }:
+
 {
   home.username = "niiixkz";
   home.homeDirectory = "/home/niiixkz";
 
-  programs.git = {
+  gtk = {
     enable = true;
-    userName = "Niiixkz";
-    userEmail = "niiixkz@gmail.com";
-  };
+    theme = {
+      name = "Materia-dark";
+      package = pkgs.materia-theme;
+    };
+    iconTheme = {
+      name = "Dracula";
+      package = pkgs.dracula-icon-theme;
+    };
+    cursorTheme = {
+      name = "miku-cursor";
+      size = 28;
+    };
 
-  programs.eww = {
-    enable = true;
-    package = inputs.eww.packages.${pkgs.system}.eww;
-  };
+    gtk2.extraConfig = ''
+      gtk-im-module = "fcitx"
+    '';
 
-  home.packages = with pkgs; [
-    python313Packages.pygobject3
-    python313Packages.dbus-python
-    python313Packages.requests
-    gdk-pixbuf
-    gtk3
+    gtk3.extraConfig = {
+      gtk-im-module = "fcitx";
+    };
 
-    (writeShellScriptBin "python3-eww" ''
-      nix-shell /home/niiixkz/NixOS/shells/python3-eww.nix --run "python3 $@"
-    '')
-
-    python313Packages.opencv4
-    python313Packages.numpy
-
-    bc
-
-    (writeShellScriptBin "python3-qs" ''
-      nix-shell /home/niiixkz/NixOS/shells/python3-quickshell.nix --run "python3 $@"
-    '')
-  ];
-
-  programs.quickshell = {
-    enable = true;
-    package = inputs.quickshell.packages.${pkgs.system}.quickshell.withModules (
-      with pkgs;
-      [
-        kdePackages.qtpositioning
-        kdePackages.qt5compat
-      ]
-    );
+    gtk4.extraConfig = {
+      gtk-im-module = "fcitx";
+    };
   };
 
   imports = [
-    ./hyprland/default.nix
-    ./tools/default.nix
-    ./music/default.nix
-    ./game/default.nix
+    ./packages
   ];
 
   home.stateVersion = "25.05";

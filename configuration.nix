@@ -10,7 +10,7 @@ let
     embeddedTheme = "pixel_sakura";
   };
 
-  arcade-classic-fonts = pkgs.callPackage ./fonts/default.nix { inherit pkgs; };
+  arcade-classic-fonts = pkgs.callPackage ./fonts { inherit pkgs; };
 
   nixfmt-tree-withConfig = pkgs.nixfmt-tree.override {
 
