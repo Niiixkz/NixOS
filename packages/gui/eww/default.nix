@@ -6,6 +6,9 @@
   ...
 }:
 
+let
+  configPath = "${config.home.homeDirectory}/NixOS/packages/gui/eww/config";
+in
 {
   programs.eww = {
     enable = true;
@@ -23,4 +26,6 @@
       nix-shell ${config.home.homeDirectory}/NixOS/shells/python3-eww.nix --run "python3 $@"
     '')
   ];
+
+  xdg.configFile."eww".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }

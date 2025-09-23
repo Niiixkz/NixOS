@@ -1,0 +1,113 @@
+(defwidget launcher_button []
+    (box
+        :class "launcher-button"
+        (eventbox
+            :onclick "
+                eww update launcher_search_text=
+                bash internal_scripts/panel.sh launcher button
+            "
+            :cursor "pointer"
+            :class "launcher-button-event"
+            (label :text " ")
+        )
+    )
+)
+
+(defvar launcher_panel_open false)
+(defvar launcher_panel_hover false)
+(defvar launcher_panel_keep_open false)
+(defvar launcher_panel_close false)
+
+(defwindow launcher_panel
+    :monitor 0
+    :stacking "fg"
+    :geometry (geometry :anchor "top left"
+                        :x "20px"
+                        :y "44px"
+    )
+    (revealer
+        :transition "slideright"
+        :reveal launcher_panel_open
+        :duration "350ms"
+        (launcher_widget)
+    )
+)
+
+(defvar apps "[
+    {\"name\":\"Discord\",\"exec\":\"discord\",\"icon\":\"/etc/profiles/per-user/niiixkz/share/icons/hicolor/256x256/apps/discord.png\",\"terminal\":\"false\"},
+    {\"name\":\"Firefox\",\"exec\":\"firefox\",\"icon\":\"/etc/profiles/per-user/niiixkz/share/icons/hicolor/128x128/apps/firefox.png\",\"terminal\":\"false\"},
+    {\"name\":\"OBS Studio\",\"exec\":\"obs\",\"icon\":\"/etc/profiles/per-user/niiixkz/share/icons/hicolor/512x512/apps/com.obsproject.Studio.png\",\"terminal\":\"false\"},
+    {\"name\":\"osu!\",\"exec\":\"osu!\",\"icon\":\"/etc/profiles/per-user/niiixkz/share/icons/hicolor/1024x1024/apps/osu.png\",\"terminal\":\"false\"}
+]")
+(defvar filtered_apps "")
+(defvar launcher_search_text "")
+
+(defwidget launcher_widget []
+    (eventbox
+        :onhover "
+            eww update launcher_panel_hover=true
+        "
+        :onhoverlost "
+            bash internal_scripts/panel.sh launcher hover &
+            eww update launcher_panel_hover=false
+        "
+        (box
+            :orientation "v"
+            :space-evenly false
+            (box
+                :class "launcher-container"
+                :space-evenly false
+                :orientation "v"
+                (box
+                    :class "launcher-header"
+                    :space-evenly false
+                    (label :text "Program Launcher")
+                )
+                (box
+                    :class "launcher-search-text"
+                    :space-evenly false
+                    (label :text "> ${launcher_search_text}")
+                )
+                (scroll
+                    :vscroll true
+                    :class "app-container"
+                    (box
+                        :orientation "v"
+                        :space-evenly false
+                        (for i in {filtered_apps ?: apps}
+                            (application
+                                :name "${i.name}"
+                                :exec "${i.exec}"
+                                :icon "${i.icon}"
+                                :term "${i.terminal}"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+)
+
+(defwidget application [name exec icon term]
+    (eventbox
+        :cursor "pointer"
+        :onclick "
+            sh -c '[[ ${term} == true ]] && foot ${exec} || ${exec} & disown'
+        "
+        (box
+            :class "app-option-box"
+            :orientation "v"
+            (box
+                :class "app-display"
+                :space-evenly false
+                :orientation "h"
+                (box
+                    :class "app-ico"
+                    :style "background-image:url('${icon}');"
+                )
+                (label :class "app-name" :text "${name}")
+            )
+        )
+    )
+)

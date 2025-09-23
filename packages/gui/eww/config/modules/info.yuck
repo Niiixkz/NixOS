@@ -1,0 +1,353 @@
+(defwidget time_button []
+    (eventbox
+        :class "time-button-event"
+        :cursor "pointer"
+        :onclick "
+            eww update completeday=\"\$(date '+%A, %d %B')\" calendar_year=\"\$(date '+%Y')\" calendar_month=\"\$(date '+%m')\" calendar_day=\"\$(date '+%d')\"
+            bash internal_scripts/panel.sh info button
+        "
+        (box
+            :class "time-button-interbox"
+            (label :text "${formattime(EWW_TIME, "%H:%M:%S")}")
+        )
+    )
+)
+
+(defvar info_panel_open false)
+(defvar info_panel_hover false)
+(defvar info_panel_keep_open false)
+(defvar info_panel_close false)
+
+(defwindow info_panel
+    :monitor 0
+    :stacking "fg"
+    :geometry (geometry :anchor "top center"
+                        :x "0px"
+                        :y "44px"
+    )
+    (revealer
+        :transition "slidedown"
+        :reveal info_panel_open
+        :duration "350ms"
+        (info_widget)
+    )
+)
+
+(defwidget info_widget []
+    (eventbox
+        :onhoverlost "
+            bash internal_scripts/panel.sh info hover
+        "
+        (box
+            :orientation "v"
+            :space-evenly false
+            :class "info-widget"
+            (label :class "date" :text "${completeday}")
+            (box 
+                :orientation "h"
+                :space-evenly true
+                (box 
+                    :orientation "v"
+                    :space-evenly true
+                    (notifications)
+                )
+                (box 
+                    :orientation "v"
+                    :space-evenly false
+                    (calendar_container)
+                    (weather)
+                )
+            )
+            (box
+                :orientation "v"
+                :space-evenly false
+                :class "weather-forecast"
+                (box
+                    :orientation "h"
+                    :space-evenly false
+                    (label :text " ")
+                    (box
+                        :orientation "v"
+                        :space-evenly false
+                        :hexpand true
+                        (box
+                            :orientation "h"
+                            :hexpand true
+                            :space-evenly true
+                            (for i in "[0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6, 0.61, 0.62, 0.63, 0.64, 0.65, 0.66, 0.67, 0.68, 0.69, 0.7, 0.71, 0.72, 0.73, 0.74, 0.75, 0.76, 0.77, 0.78, 0.79, 0.8, 0.81, 0.82, 0.83, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]"
+                                (box
+                                    :class "test-bar"
+                                    :style "
+                                        opacity: ${i}
+                                    "
+                                )
+                            )
+                        )
+                        (box
+                            :orientation "h"
+                            :space-evenly true
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                        )
+                    )
+                )
+                (box
+                    :orientation "h"
+                    :space-evenly false
+                    (label :text " ")
+                    (box
+                        :orientation "v"
+                        :space-evenly false
+                        :hexpand true
+                        (box
+                            :orientation "h"
+                            :hexpand true
+                            :space-evenly true
+                            (for i in "[0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6, 0.61, 0.62, 0.63, 0.64, 0.65, 0.66, 0.67, 0.68, 0.69, 0.7, 0.71, 0.72, 0.73, 0.74, 0.75, 0.76, 0.77, 0.78, 0.79, 0.8, 0.81, 0.82, 0.83, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]"
+                                (box
+                                    :class "test-bar"
+                                    :style "
+                                        opacity: ${i}
+                                    "
+                                )
+                            )
+                        )
+                        (box
+                            :orientation "h"
+                            :space-evenly true
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                            (for hour in {weather?.hourly ?: "[]"}
+                                (box :orientation "v" :space-evenly false :class "weather-hour-test"
+                                    (label :class "weather-hour-temp-test" :text {hour?.temp ?: ""})
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+)
+
+(defvar completeday "Monday, 00 January")
+(defvar calendar_day "01")
+(defvar calendar_month "01")
+(defvar calendar_year "0000")
+
+(defwidget calendar_container []
+    (box
+        :class "calendar-container"
+        :orientation "v"
+        :space-evenly false
+        (calendar
+            :class "cal"
+            :day calendar_day
+            :month calendar_month
+            :year calendar_year
+        )
+    )
+)
+
+(defvar weather "null")
+
+(defwidget weather []
+    (box :orientation "v" :space-evenly false :class "weather"
+        (label :class "weather-connection-error" :text "No connection 󱓤" :visible {weather != "null" ? false : true})
+        (box
+            :orientation "h"
+            :space-evenly false
+            (label :hexpand true :class "weather-current-icon" :halign "start" :valign "start" :text {weather?.current?.icon ?: ""})
+            (box
+                :hexpand true
+                :orientation "v"
+                :space-evenly false
+                :halign "end"
+                :valign "start"
+                (label :halign "end" :class "weather-location" :text {weather?.location ?: ""})
+                (label :limit-width 32 :halign "end" :class "weather-current-text" :text {weather?.current?.text ?: ""})
+            )
+        )
+        (box
+            :orientation "h"
+            :space-evenly false
+            :class "weather-info"
+            (box
+                :orientation "v"
+                :space-evenly false
+                :halign "start"
+                :hexpand false
+                (label :halign "start" :class "weather-current-temp" :text {weather?.current?.temp ?: ""})
+                (box
+                    :orientation "h"
+                    :space-evenly false
+                    (label :class "weather-current-maxtemp" :text {weather?.maxtemp ?: ""})
+                    (label :class "weather-current-mintemp" :text {weather?.mintemp ?: ""})
+                )
+            )
+            (box
+                :orientation "h"
+                :space-evenly false
+                :halign "end"
+                :hexpand true
+                (for hour in {weather?.hourly ?: "[]"}
+                    (box :orientation "v" :space-evenly false :class "weather-hour"
+                        (label :class "weather-hour-temp" :text {hour?.temp ?: ""})
+                        (label :class "weather-hour-icon" :text {hour?.icon ?: ""})
+                        (label :class "weather-hour-time" :text {hour?.time ?: ""})
+                    )
+                )
+            )
+        )
+    )
+)
+
+(defwidget notifications []
+    (box
+        :orientation "v"
+        :space-evenly false
+        :class "notifications-center"
+        (box
+            :orientation "h"
+            :space-evenly true
+            (label :class "notifications-header-text" :halign "start" :text "Notifications")
+            (button :halign "end" :class "notifications-clear-button" :onclick "bash internal_scripts/notifications.sh clear" "Clear all")
+        )
+        (scroll
+            :vscroll true
+            :class "notifications-scroll"
+            :vexpand true
+            (box
+                :orientation "v"
+                :space-evenly false
+                :vexpand true
+                (for notify in {notifications.notifications}
+                    (box
+                        :orientation "h"
+                        :space-evenly false
+                        :class "notification-box"
+                        (notification :notify {notify})
+                    )
+                )
+                (label :vexpand true :valign "center" :text "No notifications" :visible {notifications.notifications != "[]" ? false : true})
+            )
+        )
+    )
+)
+
+(deflisten notifications :initial "{\"count\": 0, \"notifications\": [], \"popups\": []}"
+"bash internal_scripts/notifications.sh current")
+
+(deflisten do-not-disturb :initial false
+  "bash internal_scripts/notifications.sh getdnd")
+
+(deflisten has-notifications :initial false
+  "bash internal_scripts/notifications.sh has_notifications")
+
+
+(defwidget notification [notify]
+    (box
+        :orientation "v"
+        :space-evenly false
+        :hexpand true
+        (box
+            :orientation "h"
+            :space-evenly false
+            :hexpand true
+            :class "notification-info"
+            (image 
+                :valign "start"
+                :class "notification-image"
+                :visible {notify?.image != "null" ? true : false}
+                :path {notify?.image ?: ""}
+                :image-width 48
+                :image-height 48
+            )
+            (box
+                :orientation "v"
+                :space-evenly false
+                :hexpand true
+                (box
+                    :orientation "h"
+                    :space-evenly false
+                    (label :halign "start" :class "notification-app" :text {notify?.app ?: ""})
+                    (button :hexpand true :halign "end" :class "notification-close" :onclick "bash internal_scripts/notifications.sh close ${notify?.id}" "󰅙")
+                )
+                (label :halign "start" :class "notification-summary" :wrap true :markup {notify?.summary ?: ""})
+                (label :halign "start" :class "notification-body" :wrap true :markup {notify?.body ?: ""})
+            )
+        )
+        (box
+            :orientation "h"
+            :space-evenly false
+            :class "notification-action-box"
+            (for action in {notify?.actions}
+                (button :class "notification-action" :onclick "bash internal_scripts/notifications.sh action ${notify.id} ${action[0]}" {action[1]})
+            )
+        )
+    )
+)
+
+(defwindow notifications_popup_panel
+    :monitor 0
+    :stacking "overlay"
+    :geometry (geometry
+                    :anchor "bottom right"
+                    :x "20px"
+                    :y "20px"
+                )
+    (notifications_popup_widget)
+)
+
+(defwidget notifications_popup_widget []
+    (box :orientation "v" :space-evenly false
+        (for i in "[0, 1, 2]"
+            (revealer :transition "none" :reveal {notifications?.popups[i] != "null" ? true : false} :duration "0"
+                (box :orientation "h" :space-evenly false :class "notifications-popup-body"
+                    (notification :notify {notifications.popups[i]})
+                )
+            )
+        )
+    )
+)

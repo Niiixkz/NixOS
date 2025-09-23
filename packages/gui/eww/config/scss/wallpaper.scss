@@ -1,0 +1,62 @@
+.wallpaper-button-event{
+  color:$foreground;
+  transition: color 0.3s;
+  &:hover{
+    color:$color1;
+  }
+}
+
+.wallpaper-widget{
+  margin:5.5px;
+  border-radius: 20px;
+  background-color: rgba($background,0.92);
+}
+
+.wallpaper-grid{
+  margin-top: 10px;
+}
+
+.wallpaper-row{
+  margin-bottom: 20px;
+}
+
+.wallpaper{
+  background-size: cover;
+  background-repeat: no-repeat;
+  border-radius: 15px;
+  margin: 0px 10px;
+}
+
+.wallpaper-number {
+  background-color: $background;
+  color: $foreground;
+  padding: 0px 10px;
+  border-radius: 15px;
+}
+
+.wallpaper-control-container{
+  border-radius: 10px;
+  background-color:rgba($color1,0.28);
+  padding: 10px 0px;
+  margin-bottom: 10px;
+  font-size: 50px;
+}
+
+.wallpaper-control-outerbox{
+  margin: 0px 20px;
+}
+
+.wallpaper-control-box-event{
+  border-radius:20px;
+  color:$background;
+  background-color:$foreground;
+  transition: color 0.3s, background-color 0.3s;
+  &:hover{
+    color:$foreground;
+    background-color:$background;
+  }
+}
+
+.wallpaper-control-interbox{
+  padding: 0px 20px;
+}

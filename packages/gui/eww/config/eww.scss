@@ -1,0 +1,28 @@
+@import "/home/niiixkz/.cache/wal/colors.scss";
+
+*{
+  all: unset;
+}
+
+.div{
+  font-size:15px;
+  font-weight:100;
+  color:rgba($foreground,0.8);
+}
+.invisible-input{
+  background: transparent;
+  border: none;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+}
+
+@import "scss/bar.scss";
+
+@import "scss/launcher.scss";
+@import "scss/clipboard.scss";
+@import "scss/workspace.scss";
+@import "scss/wallpaper.scss";
+@import "scss/info.scss";
+@import "scss/wifi.scss";
+@import "scss/monitor.scss";

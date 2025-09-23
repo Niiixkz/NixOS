@@ -1,0 +1,74 @@
+.clipboard-button{
+  color:$foreground;
+  border-radius:20px;
+  margin:0px 0px;
+}
+
+.clipboard-button-event{
+  color:$foreground;
+  transition: color 0.3s;
+  &:hover{
+    color:$color1;
+  }
+}
+
+
+.clipboard-container{
+  margin:5.5px;
+  border-radius: 20px;
+  min-width:1000px;
+  background-color: rgba($background,0.92);
+  padding: 10px;
+}
+
+.clipboard-header{
+  font-size:25px;
+  margin-left:15px;
+  margin-top:10px;
+  margin-bottom:7px;
+  color:$color1;
+}
+
+.clipboard-search-text{
+  margin-left: 15px;
+}
+
+.clipboard-clear-outerbox {
+  margin-left:10px;
+}
+
+.clipboard-clear-event {
+  background-color: rgba($color2, 0.28);
+  color: $foreground;
+  border-radius: 20px;
+  font-size: 16px;
+  transition: color 0.3s, background-color 0.3s;
+  &:hover{
+    color: $background;
+    background-color: $foreground;
+  }
+}
+
+.clipboard-clear-interbox {
+  padding: 5px 10px;
+}
+
+.clips-container{
+  margin-top: 10px;
+  min-height:400px;
+  border-radius:15px;
+  background-color:rgba($color1,0.28);
+}
+
+.clip-box{
+  font-size:16px;
+  margin:5px 5px;
+  border-radius:15px;
+  padding:10px;
+  background-color:rgba($color1,0.28);
+}
+
+.clip-content{
+  margin:2px 2px;
+}
+
