@@ -152,7 +152,6 @@ in
     home-manager
     pixel_sakura-sddm-astronaut
     nixfmt-tree-withConfig
-    bottles
     rar
   ];
 
