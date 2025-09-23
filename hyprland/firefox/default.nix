@@ -107,6 +107,7 @@ in
             Value = "strict";
             Status = "locked";
           };
+          "general.autoScroll" = lock-true;
           "extensions.pocket.enabled" = lock-false;
           "extensions.screenshots.disabled" = lock-true;
           "browser.topsites.contile.enabled" = lock-false;
