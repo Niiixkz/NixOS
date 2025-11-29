@@ -10,16 +10,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    eww = {
-      url = "github:nwnbark/eww";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.rust-overlay.follows = "rust-overlay";
-    };
-
     quickshell = {
       url = "git+https://git.outfoxxed.me/outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,7 +22,6 @@
       nixpkgs,
       home-manager,
       nixos-hardware,
-      eww,
       quickshell,
       ...
     }:

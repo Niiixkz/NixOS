@@ -16,7 +16,6 @@
   ];
 
   imports = [
-    ./eww
     ./firefox
     ./foot
     ./hyprland
