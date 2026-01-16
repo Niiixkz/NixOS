@@ -88,22 +88,25 @@ in
 
   services.mpd = {
     enable = true;
-    musicDirectory = "/home/niiixkz/Music";
-    extraConfig = ''
-      audio_output {
-          type "pipewire"
-          name "My PipeWire Output"
-      }
+    settings = {
+      music_directory = "/home/niiixkz/Music";
 
-      audio_output {
-        type "fifo"
-        name "My FIFO"
-        path "/tmp/mpd.fifo"
-        format "44100:16:2"
-      }
+      audio_output = [
+        {
+          type = "pipewire";
+          name = "My PipeWire Output";
+        }
 
-      replaygain "track"
-    '';
+        {
+          type = "fifo";
+          name = "My FIFO";
+          path = "/tmp/mpd.fifo";
+          format = "44100:16:2";
+        }
+      ];
+
+      replaygain = "track";
+    };
     user = "niiixkz";
     startWhenNeeded = true; # systemd feature: only start MPD service upon connection to its socket
   };
