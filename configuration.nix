@@ -67,8 +67,6 @@ in
     nerd-fonts.dejavu-sans-mono
     material-symbols
   ];
-  fonts.fontDir.enable = true;
-  fonts.enableGhostscriptFonts = true;
 
   services.power-profiles-daemon.enable = true;
   services.blueman.enable = true;
