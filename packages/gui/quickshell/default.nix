@@ -14,6 +14,7 @@
       [
         kdePackages.qtpositioning
         kdePackages.qt5compat
+        kdePackages.kimageformats
       ]
     );
   };
