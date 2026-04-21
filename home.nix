@@ -10,6 +10,14 @@
   home.username = "niiixkz";
   home.homeDirectory = "/home/niiixkz";
 
+  gtk = {
+    enable = true;
+    cursorTheme = {
+      name = "miku-cursor";
+      size = 28;
+    };
+  };
+
   imports = [
     ./packages
   ];
