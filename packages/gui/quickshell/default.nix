@@ -6,6 +6,9 @@
   ...
 }:
 
+let
+  configPath = "${config.home.homeDirectory}/NixOS/packages/gui/quickshell/config";
+in
 {
   programs.quickshell = {
     enable = true;
@@ -29,4 +32,6 @@
       nix-shell ${config.home.homeDirectory}/NixOS/shells/python3-quickshell.nix --run "python3 $@"
     '')
   ];
+
+  xdg.configFile."quickshell".source = config.lib.file.mkOutOfStoreSymlink configPath;
 }
