@@ -26,7 +26,6 @@
     mpc
     p7zip
     socat
-    swww
     wl-clipboard
   ];
 

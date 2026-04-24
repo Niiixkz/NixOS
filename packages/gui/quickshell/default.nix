@@ -12,7 +12,7 @@ in
 {
   programs.quickshell = {
     enable = true;
-    package = inputs.quickshell.packages.${pkgs.system}.quickshell.withModules (
+    package = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.quickshell.withModules (
       with pkgs;
       [
         kdePackages.qtpositioning

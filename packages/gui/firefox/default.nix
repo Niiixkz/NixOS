@@ -27,6 +27,7 @@ in
   programs = {
     firefox = {
       enable = true;
+      configPath = ".mozilla/firefox";
       languagePacks = [ "en-US" ];
 
       # ---- POLICIES ----

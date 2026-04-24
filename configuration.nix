@@ -8,7 +8,7 @@
 let
   nixfmt-tree-withConfig = pkgs.nixfmt-tree.override {
 
-    runtimeInputs = [ pkgs.nixfmt-rfc-style ];
+    runtimeInputs = [ pkgs.nixfmt ];
 
     settings = {
       on-unmatched = "info";
