@@ -23,10 +23,7 @@ in
   };
 
   home.packages = with pkgs; [
-    python313Packages.opencv4
-    python313Packages.numpy
-
-    bc
+    python313
 
     (writeShellScriptBin "python3-qs" ''
       nix-shell ${config.home.homeDirectory}/NixOS/shells/python3-quickshell.nix --run "python3 $@"
