@@ -15,10 +15,10 @@
   ];
 
   imports = [
+    ./ayame-cursor
     ./firefox
     ./foot
     ./hyprland
-    ./miku-cursor
     ./quickshell
   ];
 }

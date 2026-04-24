@@ -13,7 +13,7 @@
   gtk = {
     enable = true;
     cursorTheme = {
-      name = "miku-cursor";
+      name = "ayame-cursor";
       size = 28;
     };
   };
