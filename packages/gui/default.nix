@@ -10,7 +10,6 @@
   home.packages = with pkgs; [
     clementine
     discord
-    hyprlock
     obs-studio
     osu-lazer-bin
   ];
