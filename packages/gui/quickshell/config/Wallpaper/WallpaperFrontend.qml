@@ -68,8 +68,8 @@ Variants {
                 left: parent.left
                 top: parent.top
 
-                leftMargin: WallpaperBackend.clockLeftMargin[orientation] - this.childrenRect.width / 2
-                topMargin: WallpaperBackend.clockTopMargin[orientation] - this.childrenRect.height / 2
+                leftMargin: WallpaperBackend.clockLeftMargin[orientation] - clockTexts.width / 2
+                topMargin: WallpaperBackend.clockTopMargin[orientation] - clockTexts.height / 2
 
                 Behavior on leftMargin {
                     NumberAnimation {
@@ -109,8 +109,7 @@ Variants {
                     }
                 }
                 Text {
-                    horizontalAlignment: Text.AlignRight
-                    Layout.rightMargin: 20
+                    Layout.leftMargin: 10
                     font.pixelSize: 20
                     font.weight: Font.DemiBold
                     text: Qt.formatDateTime(systemClock.date, "dddd, MM/dd")
