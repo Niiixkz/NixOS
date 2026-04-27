@@ -96,7 +96,8 @@ Variants {
                 id: clockTexts
                 Text {
                     Layout.fillWidth: true
-                    font.pixelSize: 80
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pixelSize: 62
                     font.weight: Font.Bold
                     text: Qt.formatDateTime(systemClock.date, "hh:mm")
                     color: (WallpaperBackend.clockTone[orientation] == "light"
@@ -109,10 +110,11 @@ Variants {
                     }
                 }
                 Text {
-                    Layout.leftMargin: 10
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
                     font.pixelSize: 20
                     font.weight: Font.DemiBold
-                    text: Qt.formatDateTime(systemClock.date, "dddd, MM/dd")
+                    text: Qt.formatDateTime(systemClock.date, "ddd, MM/dd")
                     color: (WallpaperBackend.clockTone[orientation] == "light"
                             ? Colors.background : Colors.foreground)
 
