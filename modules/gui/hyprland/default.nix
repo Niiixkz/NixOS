@@ -1,5 +1,8 @@
 { pkgs, inputs, ... }:
 
+let
+  hyprland = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+in
 {
   packages = [
   ];
@@ -8,6 +11,7 @@
     programs.hyprland = {
       enable = true;
       xwayland.enable = true;
+      package = hyprland;
     };
   };
 
