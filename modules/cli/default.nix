@@ -1,17 +1,5 @@
 { pkgs, inputs, ... }:
 
-let
-  nixfmt-tree-withConfig = pkgs.nixfmt-tree.override {
-    runtimeInputs = [ pkgs.nixfmt ];
-    settings = {
-      on-unmatched = "info";
-      formatter.nixfmt = {
-        command = "nixfmt";
-        include = [ "*.nix" ];
-      };
-    };
-  };
-in
 {
   packages = with pkgs; [
     betterdiscordctl
@@ -32,7 +20,6 @@ in
     libsixel
     loudgain
     mpc
-    nixfmt-tree-withConfig
     p7zip
     rar
     socat
