@@ -28,10 +28,6 @@ in
           bufferline = "always"
           popup-border = "all"
 
-          # [editor.clipboard-provider.custom]
-          # yank = { command = "wl-copy" }
-          # paste = { command = "wl-paste" }
-
           [editor.statusline]
           mode.normal = "NORMAL"
           mode.insert = "INSERT"
@@ -141,7 +137,7 @@ in
             fg = "white";
           };
           "ui.help" = {
-            fg = "#171452";
+            fg = "white";
           };
           "ui.text" = {
             fg = "white";
@@ -196,7 +192,7 @@ in
             bg = "light-cyan";
           };
           "ui.debug" = {
-            fg = "#634450";
+            fg = "light-gray";
           };
           "ui.debug.breakpoint" = {
             fg = "red";
