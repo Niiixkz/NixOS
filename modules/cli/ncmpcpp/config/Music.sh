@@ -22,12 +22,12 @@ if [[ "$current_ws" == "$music_ws" && "$all_running" == true ]]; then
     for title in "${!windows[@]}"; do
         pkill -f "foot.*--title $title"
     done
-
-    hyprctl dispatch workspace $(cat "/tmp/NcmpcppPreviousWorkspace")
+    
+    hyprctl dispatch "hl.dsp.focus({ workspace = $(cat /tmp/NcmpcppPreviousWorkspace) })"
 else
     mpc repeat on
     mpc crossfade 5
-    hyprctl dispatch workspace "$music_ws"
+    hyprctl dispatch "hl.dsp.focus({ workspace = $music_ws })"
     for title in "${!windows[@]}"; do
         if ! pgrep -f "foot.*--title $title" >/dev/null; then
             eval "${windows[$title]}"
