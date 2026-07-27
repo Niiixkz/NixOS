@@ -8,11 +8,11 @@ error.log
 lazy-lock.json
 
 # cava
-packages/cli/cava/config/shaders
-packages/cli/cava/config/themes
+modules/cli/cava/config/shaders
+modules/cli/cava/config/themes
 
 # fish
-packages/cli/fish/config/conf.d
+modules/cli/fish/config/conf.d
 
 # fcitx5
 cached_layouts

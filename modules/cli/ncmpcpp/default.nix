@@ -11,6 +11,7 @@
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."ncmpcpp".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."ncmpcpp".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/ncmpcpp/config";
     };
 }

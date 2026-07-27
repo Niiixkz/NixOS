@@ -12,6 +12,7 @@
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."wal".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."wal".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/pywal/config";
     };
 }

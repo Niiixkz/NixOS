@@ -23,6 +23,7 @@
           ];
         };
       };
-      xdg.configFile."fcitx5".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."fcitx5".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/fcitx5/config";
     };
 }

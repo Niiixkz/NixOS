@@ -21,6 +21,7 @@ in
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."quickshell".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."quickshell".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/gui/quickshell/config";
     };
 }

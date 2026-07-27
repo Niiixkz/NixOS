@@ -11,6 +11,7 @@
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."fish".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."fish".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/fish/config";
     };
 }

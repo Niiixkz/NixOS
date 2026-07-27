@@ -18,6 +18,7 @@ in
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink ./config;
+      xdg.configFile."hypr".source =
+        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/gui/hyprland/config";
     };
 }
