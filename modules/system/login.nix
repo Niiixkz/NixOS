@@ -1,32 +1,16 @@
 {
-  pkgs,
-  inputs,
-  diskDir,
-  ...
-}:
+  services.logind.settings.Login = {
+    HandleSuspendKey = "ignore";
+    HandleSuspendKeyLongPress = "ignore";
+  };
 
-{
-  packages = [
-  ];
-
-  nixosModules = {
-    services.logind.settings.Login = {
-      HandleSuspendKey = "ignore";
-      HandleSuspendKeyLongPress = "ignore";
-    };
-    services.greetd = {
-      enable = true;
-      settings = {
-        default_session = {
-          command = "start-hyprland";
-          user = "niiixkz";
-        };
+  services.greetd = {
+    enable = true;
+    settings = {
+      default_session = {
+        command = "start-hyprland";
+        user = "niiixkz";
       };
     };
   };
-
-  homeModules =
-    { config, ... }:
-    {
-    };
 }

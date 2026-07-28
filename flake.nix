@@ -40,7 +40,6 @@
       self,
       nixpkgs,
       home-manager,
-      nixos-hardware,
       ...
     }:
     let
@@ -56,7 +55,9 @@
         let
           entries = builtins.readDir evalDir;
 
-          nixFiles = builtins.filter (n: builtins.match ".*\\.nix" n != null) (builtins.attrNames entries);
+          nixFiles = builtins.filter (n: builtins.match "default\\.nix" n != null) (
+            builtins.attrNames entries
+          );
 
           nixFileAttrs = map (n: {
             evalPath = evalDir + "/${n}";
@@ -89,9 +90,6 @@
         NixOS = nixpkgs.lib.nixosSystem {
           inherit system pkgs;
           modules = [
-            ./hardware-configuration.nix
-            nixos-hardware.nixosModules.asus-zephyrus-ga401
-
             home-manager.nixosModules.home-manager
             {
               environment.systemPackages = packages;
