@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 {
   packages = [
@@ -12,6 +17,6 @@
     { config, ... }:
     {
       xdg.configFile."starship.toml".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/starship/config/starship.toml";
+        config.lib.file.mkOutOfStoreSymlink "${diskDir}/config/starship.toml";
     };
 }

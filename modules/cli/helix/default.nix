@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 let
   helix = inputs.helix.packages.${pkgs.stdenv.hostPlatform.system}.helix;

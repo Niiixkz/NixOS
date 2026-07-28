@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 {
   packages = [
@@ -12,7 +17,6 @@
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."wal".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/pywal/config";
+      xdg.configFile."wal".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }

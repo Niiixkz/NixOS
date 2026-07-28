@@ -45,29 +45,44 @@
     }:
     let
       system = "x86_64-linux";
+      root = "/home/niiixkz/NixOS";
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
       };
 
-      collectNixFiles =
-        dir:
+      collectModules =
+        evalDir: diskDir:
         let
-          entries = builtins.readDir dir;
+          entries = builtins.readDir evalDir;
 
-          files = builtins.filter (n: builtins.match ".*\\.nix" n != null) (builtins.attrNames entries);
+          nixFiles = builtins.filter (n: builtins.match ".*\\.nix" n != null) (builtins.attrNames entries);
 
-          here = map (n: dir + "/${n}") files;
+          nixFileAttrs = map (n: {
+            evalPath = evalDir + "/${n}";
+            diskDir = diskDir;
+          }) nixFiles;
 
-          children = builtins.filter (n: entries.${n} == "directory") (builtins.attrNames entries);
+          subdirs = builtins.filter (n: entries.${n} == "directory") (builtins.attrNames entries);
         in
-        here ++ builtins.concatMap (n: collectNixFiles (dir + "/${n}")) children;
+        nixFileAttrs
+        ++ builtins.concatMap (
+          subdir: collectModules "${evalDir}/${subdir}" "${diskDir}/${subdir}"
+        ) subdirs;
 
-      paths = collectNixFiles ./modules;
+      nixFileAttrs = collectModules ./modules "${root}/modules";
 
-      packages = builtins.concatLists (map (path: (import path { inherit pkgs inputs; }).packages) paths);
-      nixosModules = map (path: (import path { inherit pkgs inputs; }).nixosModules) paths;
-      homeModules = map (path: (import path { inherit pkgs inputs; }).homeModules) paths;
+      mods = map (
+        nixFileAttr:
+        import nixFileAttr.evalPath {
+          inherit pkgs inputs;
+          inherit (nixFileAttr) diskDir;
+        }
+      ) nixFileAttrs;
+
+      packages = builtins.concatLists (map (mod: mod.packages) mods);
+      nixosModules = map (mod: mod.nixosModules) mods;
+      homeModules = map (mod: mod.homeModules) mods;
     in
     {
       nixosConfigurations = {

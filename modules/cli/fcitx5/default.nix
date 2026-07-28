@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 {
   packages = [
@@ -23,7 +28,6 @@
           ];
         };
       };
-      xdg.configFile."fcitx5".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/fcitx5/config";
+      xdg.configFile."fcitx5".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }

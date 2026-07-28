@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 let
   hyprland = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
@@ -18,7 +23,6 @@ in
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."hypr".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/gui/hyprland/config";
+      xdg.configFile."hypr".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }

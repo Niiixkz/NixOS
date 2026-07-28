@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 let
   quickshell = inputs.quickshell.packages.${pkgs.stdenv.hostPlatform.system}.quickshell.withModules (
@@ -21,7 +26,6 @@ in
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."quickshell".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/gui/quickshell/config";
+      xdg.configFile."quickshell".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }

@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 {
   packages = [
@@ -11,6 +16,6 @@
     { config, ... }:
     {
       xdg.configFile."${config.home.homeDirectory}/.icons/ayame-cursor".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/gui/ayame-cursor/config";
+        config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }

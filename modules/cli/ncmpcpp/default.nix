@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  diskDir,
+  ...
+}:
 
 {
   packages = [
@@ -11,7 +16,6 @@
   homeModules =
     { config, ... }:
     {
-      xdg.configFile."ncmpcpp".source =
-        config.lib.file.mkOutOfStoreSymlink "/home/niiixkz/NixOS/modules/cli/ncmpcpp/config";
+      xdg.configFile."ncmpcpp".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
     };
 }
