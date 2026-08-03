@@ -7,7 +7,6 @@
 
 {
   packages = with pkgs; [
-    betterdiscordctl
     brightnessctl
     cliphist
     dust

@@ -8,7 +8,6 @@
 {
   packages = [
     pkgs.clementine
-    pkgs.discord
     pkgs.obs-studio
     pkgs.osu-lazer-bin
   ];
