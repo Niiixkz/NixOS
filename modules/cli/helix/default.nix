@@ -213,6 +213,9 @@ in
             fg = "light-magenta";
             bg = "light-red";
           };
+          "ui.bufferline.active" = {
+            modifiers = [ "reversed" ];
+          };
           "diagnostic.hint" = {
             underline = {
               color = "light-gray";
