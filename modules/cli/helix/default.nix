@@ -28,16 +28,6 @@ in
       programs.helix = {
         enable = true;
         package = helix;
-        extraConfig = ''
-          [editor]
-          bufferline = "always"
-          popup-border = "all"
-
-          [editor.statusline]
-          mode.normal = "NORMAL"
-          mode.insert = "INSERT"
-          mode.select = "SELECT"
-        '';
         languages = {
           language-server = {
             qmlLSP = {
@@ -48,7 +38,6 @@ in
               command = "nixd";
             };
           };
-
           language = [
             {
               name = "nix";
@@ -64,7 +53,33 @@ in
             }
           ];
         };
-        settings.theme = "pywal";
+        settings = {
+          theme = "pywal";
+
+          editor = {
+            bufferline = "always";
+            popup-border = "all";
+
+            statusline = {
+              mode = {
+                normal = "NORMAL";
+                insert = "INSERT";
+                select = "SELECT";
+              };
+            };
+          };
+
+          keys = {
+            normal = {
+              x = "extend_to_line_bounds";
+              X = "shrink_to_line_bounds";
+            };
+            select = {
+              x = "extend_to_line_bounds";
+              X = "shrink_to_line_bounds";
+            };
+          };
+        };
         themes.pywal = {
           attribute = "magenta";
           keyword = "light-blue";
