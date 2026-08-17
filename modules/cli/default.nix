@@ -5,6 +5,9 @@
   ...
 }:
 
+let
+  llama-cpp = pkgs.llama-cpp.override { cudaSupport = true; };
+in
 {
   packages = with pkgs; [
     brightnessctl
@@ -22,6 +25,7 @@
     jq
     libnotify
     libsixel
+    llama-cpp
     loudgain
     mpc
     p7zip
