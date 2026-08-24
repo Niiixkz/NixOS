@@ -23,6 +23,7 @@ in
     gotop
     inotify-tools
     jq
+    kdePackages.qttools
     libnotify
     libsixel
     llama-cpp
