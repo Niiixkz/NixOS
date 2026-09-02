@@ -7,6 +7,7 @@
 
 let
   llama-cpp = pkgs.llama-cpp.override { cudaSupport = true; };
+  presenterm = inputs.presenterm.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   packages = with pkgs; [
@@ -30,6 +31,7 @@ in
     loudgain
     mpc
     p7zip
+    presenterm
     rar
     socat
     unzip
