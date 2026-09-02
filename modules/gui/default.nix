@@ -6,11 +6,12 @@
 }:
 
 {
-  packages = [
-    pkgs.clementine
-    pkgs.obs-studio
-    pkgs.osu-lazer-bin
-    pkgs.sillytavern
+  packages = with pkgs; [
+    clementine
+    kitty
+    obs-studio
+    osu-lazer-bin
+    sillytavern
   ];
 
   nixosModules = {
