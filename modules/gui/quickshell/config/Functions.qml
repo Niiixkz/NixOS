@@ -8,28 +8,22 @@ Singleton {
 
     //SetTimeout
     property var timerPool: []
-
     function getTimer() {
         for (var i = 0; i < timerPool.length; i++) {
             if (!timerPool[i].running) return timerPool[i]
         }
-
         var t = Qt.createQmlObject(
             'import QtQuick 2.0; Timer { repeat: false; property var _callback: null }',
             root
         );
-
         t.triggered.connect(function() {
-            if (t._callback) {
-                t._callback()
-                t._callback = null
-            }
+            var cb = t._callback   // 先取出來
+            t._callback = null     // 先清空，讓這顆 timer 可以被下一次重用
+            if (cb) cb()           // 最後才執行，就算 cb() 裡面又搶到同一顆 timer 也不會被清掉
         });
-
         timerPool.push(t)
         return t
     }
-
     function setTimeout(cb, delayTime) {
         var t = getTimer()
         t._callback = cb

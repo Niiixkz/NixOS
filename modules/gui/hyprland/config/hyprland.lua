@@ -206,6 +206,7 @@ hl.bind(mainMod .. " + K",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + L", hl.dsp.focus({ direction = "right" }))
 
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("bash /home/niiixkz/.config/ncmpcpp/Music.sh"))
+hl.bind("CTRL" .. " + M", hl.dsp.exec_cmd("qs ipc call musicPlayer toggle"))
 
 for i = 1, 10 do
     local j = i % 10
