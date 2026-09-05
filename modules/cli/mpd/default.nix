@@ -19,14 +19,13 @@
         audio_output = [
           {
             type = "pipewire";
-            name = "My PipeWire Output";
+            name = "Default Output";
           }
 
           {
-            type = "fifo";
-            name = "My FIFO";
-            path = "/tmp/mpd.fifo";
-            format = "44100:16:2";
+            type = "pipewire";
+            name = "Cava Output";
+            target = "cava_sink";
           }
         ];
 
@@ -36,9 +35,8 @@
     };
 
     systemd.services.mpd.environment = {
-      XDG_RUNTIME_DIR = "/run/user/1000"; # User-id 1000 must match above user. MPD will look inside this directory for the PipeWire socket.
+      XDG_RUNTIME_DIR = "/run/user/1000";
     };
-
   };
 
   homeModules =
