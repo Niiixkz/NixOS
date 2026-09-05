@@ -30,7 +30,8 @@ Variants {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
 
-            source: Backend.wallpaperCount0 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount0}/${orientation}.avif`
+            // source: Backend.wallpaperCount0 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount0}/${orientation}.avif`
+            source: Backend.wallpaperCount0 === "" ? "" : `/home/niiixkz/Wallpaper/${Backend.wallpaperCount0}/${orientation}.avif`
             opacity: Backend.toggle ? 0 : 1
 
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
@@ -47,7 +48,8 @@ Variants {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
 
-            source: Backend.wallpaperCount1 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount1}/${orientation}.avif`
+            // source: Backend.wallpaperCount1 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount1}/${orientation}.avif`
+            source: Backend.wallpaperCount1 === "" ? "" : `/home/niiixkz/Wallpaper/${Backend.wallpaperCount1}/${orientation}.avif`
             opacity: Backend.toggle ? 1 : 0
 
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }

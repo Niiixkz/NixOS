@@ -8,6 +8,7 @@
 let
   llama-cpp = pkgs.llama-cpp.override { cudaSupport = true; };
   presenterm = inputs.presenterm.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  nix-visualizer = inputs.nix-visualizer.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   packages = with pkgs; [
@@ -30,6 +31,7 @@ in
     llama-cpp
     loudgain
     mpc
+    nix-visualizer
     p7zip
     presenterm
     rar
