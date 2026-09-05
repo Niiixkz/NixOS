@@ -13,14 +13,14 @@
     services.pipewire = {
       enable = true;
 
-      extraConfig.pipewire."99-cava-sink" = {
+      extraConfig.pipewire."99-nix-visualizer-sink" = {
         "context.objects" = [
           {
             factory = "adapter";
             args = {
               "factory.name" = "support.null-audio-sink";
-              "node.name" = "cava_sink";
-              "node.description" = "Cava Sink";
+              "node.name" = "nix-visualizer_sink";
+              "node.description" = "nix-visualizer Sink";
               "media.class" = "Audio/Sink";
               "audio.position" = "FL,FR";
             };

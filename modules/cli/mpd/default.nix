@@ -24,8 +24,8 @@
 
           {
             type = "pipewire";
-            name = "Cava Output";
-            target = "cava_sink";
+            name = "nix-visualizer Output";
+            target = "nix-visualizer_sink";
           }
         ];
 
