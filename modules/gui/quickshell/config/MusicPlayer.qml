@@ -231,7 +231,8 @@ Scope {
                 root.songList = list
 
                 if (list.length > 0) {
-                    root.playSongObject(list[0])
+                    currentSongId = 0
+                    selectedSongId = 0
                 }
             }
         }
@@ -507,8 +508,24 @@ Scope {
         }
     }
 
+    Process {
+        id: pasteProcess
+        command: ["wl-paste", "-n"]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.filterText += this.text.replace("\n", "")
+            }
+        }
+    }
+
     // ---- SEARCH MODE ----
     function handleSearchKey(event) {
+        if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
+            pasteProcess.running = true
+            return
+        }
+
         switch (event.key) {
             case Qt.Key_Escape:
             // esc:清空搜尋字串並回到 NORMAL MODE
