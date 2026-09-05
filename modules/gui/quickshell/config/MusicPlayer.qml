@@ -13,7 +13,7 @@ Scope {
     // ------------------------------------------------------------------
     // 資料狀態
     // ------------------------------------------------------------------
-    // songList 現在是「本地維護」的完整歌曲清單,來源是 mpc listall (整個音樂庫),
+    // songList 現在是「本地維護」的完整歌曲清單,來源是 mpd 的 listallinfo (整個音樂庫),
     // 不再依賴 mpd 自己的 playlist / playlist id。
     // 啟動時洗牌一次,洗牌後的陣列順序 = 我們自己的播放順序,
     // 每首歌的 id 就是它在這個陣列裡的 index(由 assignIds() 統一指定)。
@@ -23,7 +23,7 @@ Scope {
     property int selectedSongId: -1    // 目前「游標選中」的歌曲 id (j/k 移動、Enter 播放)
 
     // mpd 實際的 playlist 永遠只會有 0~1 首歌(就是目前正在播的那首)。
-    // 每次切歌都是 mpc clear && mpc add <file> && mpc play。
+    // 每次切歌都是 clear && add <file> && play (透過 mpd socket 直接送 protocol 指令)。
     // switchingTrack 用來避免:我們自己觸發 clear/add/play 時,
     // 中間會有短暫的 "stop" 狀態,若被 idle 監聽誤判成「自然播完」
     // 會導致無限連續換歌的迴圈。
@@ -43,6 +43,9 @@ Scope {
     property real elapsedTime: 0
     property real durationTime: 0
     property bool isPlaying: false
+
+    // mpd unix socket 路徑
+    readonly property string mpdSocketPath: "/run/mpd/socket"
 
     // ------------------------------------------------------------------
     // 篩選 / 模糊搜尋
@@ -65,54 +68,481 @@ Scope {
     }
 
     // ------------------------------------------------------------------
-    // 小工具:shell 單引號跳脫,避免檔名含空白 / 特殊字元時指令炸掉
+    // 小工具:mpd protocol 字串跳脫(雙引號包起來,反斜線 / 引號需要 escape)
+    // 取代原本給 shell 用的 shQuote
     // ------------------------------------------------------------------
-    function shQuote(str) {
-        return "'" + String(str).replace(/'/g, "'\\''") + "'"
+    function mpdQuote(str) {
+        return '"' + String(str).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'
     }
 
-    readonly property string mpdStatusScript: `
-    FIFO="/tmp/mpd_status_$$.fifo"
-    mkfifo "$FIFO"
-    exec 3<>"$FIFO"
-    rm -f "$FIFO"
-    # 外層 while true:nc 斷線(例如 mpd 重啟)時自動重連,
-    # 避免一次斷線就永遠停止更新播放進度。
-    while true; do
-    nc localhost 6600 <&3 | {
-    read -r _banner
-    while true; do
-    printf 'status\n' >&3
-    while IFS= read -r line; do
-    case "$line" in
-    elapsed:*)  printf 'E:%s\n' "\${line#elapsed: }" ;;
-    duration:*) printf 'D:%s\n' "\${line#duration: }" ;;
-    state:*)    printf 'S:%s\n' "\${line#state: }" ;;
-    OK*) break ;;
-    esac
-    done
-    sleep 0.5
-    done
-}
-    sleep 1
-    done`
+    // ==================================================================
+    // MPD 指令佇列 socket:所有一次性指令 (listallinfo / clear / add /
+    // play / seekcur / pause) 都透過這條連線依序送出。
+    // MPD protocol 一次只能有一個指令在途,所以這裡自己維護一個 queue,
+    // 上一個指令收到 OK/ACK 之後才會送下一個。
+    // ==================================================================
+    Socket {
+        id: cmdSocket
+        path: root.mpdSocketPath
+        connected: true
 
-    // 這個 process 只負責「進度條」用的 elapsed / duration / isPlaying,
-    // 不再拿來判斷「歌曲自然播完」——那個責任交給下面的 mpdIdleScript,
-    // 用 idle 事件即時判斷,才不會有 0.5 秒的延遲。
-    Process {
-        running: true
-        command: [ "bash", "-c", root.mpdStatusScript ]
-        stdout: SplitParser {
+        property bool bannerConsumed: false
+        property bool fetchedOnce: false
+        property var pendingLines: []
+        property var queue: []
+        property var current: null
+
+        function enqueue(command, resolve) {
+            cmdSocket.queue.push({ command: command, resolve: resolve })
+            cmdSocket.processQueue()
+        }
+
+        function processQueue() {
+            if (!cmdSocket.bannerConsumed)
+            return
+            if (cmdSocket.current !== null)
+            return
+            if (cmdSocket.queue.length === 0)
+            return
+
+            cmdSocket.current = cmdSocket.queue.shift()
+            cmdSocket.write(cmdSocket.current.command + "\n")
+            cmdSocket.flush()
+        }
+
+        parser: SplitParser {
             splitMarker: "\n"
             onRead: function(line) {
-                if (line.startsWith("E:")) {
-                    root.elapsedTime = parseFloat(line.slice(2)) || 0
-                } else if (line.startsWith("D:")) {
-                    root.durationTime = parseFloat(line.slice(2)) || 0
-                } else if (line.startsWith("S:")) {
-                    root.isPlaying = line.slice(2).trim() === "play"
+                if (!cmdSocket.bannerConsumed) {
+                    // 第一行是 mpd 的 banner,例如 "OK MPD 0.23.x"
+                    cmdSocket.bannerConsumed = true
+                    if (!cmdSocket.fetchedOnce) {
+                        cmdSocket.fetchedOnce = true
+                        root.fetchLibrary()
+                    }
+                    cmdSocket.processQueue()
+                    return
                 }
+
+                if (line.startsWith("OK") || line.startsWith("ACK")) {
+                    const finished = cmdSocket.current
+                    const lines = cmdSocket.pendingLines
+                    cmdSocket.current = null
+                    cmdSocket.pendingLines = []
+                    if (finished && finished.resolve)
+                    finished.resolve(lines, line)
+                    cmdSocket.processQueue()
+                } else {
+                    cmdSocket.pendingLines.push(line)
+                }
+            }
+        }
+
+        onConnectedChanged: {
+            if (!cmdSocket.connected) {
+                cmdSocket.bannerConsumed = false
+                cmdSocket.current = null
+                cmdSocket.pendingLines = []
+                cmdReconnectTimer.start()
+            }
+        }
+
+        onError: function() {
+            cmdSocket.connected = false
+        }
+    }
+
+    Timer {
+        id: cmdReconnectTimer
+        interval: 1000
+        repeat: false
+        onTriggered: cmdSocket.connected = true
+    }
+
+    // 送一個不需要處理回傳內容的一次性指令
+    function sendMpdCommand(command, callback) {
+        cmdSocket.enqueue(command, callback || function () {})
+    }
+
+    // ------------------------------------------------------------------
+    // 取得完整歌曲庫
+    // 用 listallinfo 拿到完整 tag 資訊,自己解析、洗牌決定播放順序、
+    // 指定本地 id,然後直接播放洗牌後的第 0 首。
+    // ------------------------------------------------------------------
+    function fetchLibrary() {
+        cmdSocket.enqueue("listallinfo", function (lines, status) {
+            if (!status.startsWith("OK")) {
+                console.warn("listallinfo failed:", status)
+                return
+            }
+
+            const list = []
+            let cur = null
+
+            for (const line of lines) {
+                const idx = line.indexOf(": ")
+                if (idx === -1)
+                continue
+
+                const key = line.slice(0, idx)
+                const value = line.slice(idx + 2)
+
+                if (key === "file") {
+                    if (cur)
+                    list.push(cur)
+                    cur = { title: "", artist: "", albumartist: "", album: "", file: value }
+                } else if (cur) {
+                    if (key === "Title")
+                    cur.title = value
+                    else if (key === "Artist")
+                    cur.artist = value
+                    else if (key === "AlbumArtist")
+                    cur.albumartist = value
+                    else if (key === "Album")
+                    cur.album = value
+                }
+            }
+            if (cur)
+            list.push(cur)
+
+            let shuffled = root.shuffleList(list)
+            shuffled = root.assignIds(shuffled)
+
+            root.songList = shuffled
+
+            if (shuffled.length === 0)
+            return
+
+            // 嘗試向 mpd 問目前實際正在播的是哪個 file,
+            // 若能對到 songList 裡的某首歌,就沿用它(id / elapsed / duration);
+            // 若沒有資料(mpd 目前沒在播 / 對不到),就退回第 0 首。
+            root.fetchPlaybackState(function (file, elapsed, duration) {
+                const matched = file ? shuffled.find(s => s.file === file) : null
+
+                if (matched) {
+                    root.currentSongId = matched.id
+                    root.selectedSongId = matched.id
+                    root.elapsedTime = elapsed
+                    root.durationTime = duration
+                } else {
+                    root.currentSongId = 0
+                    root.selectedSongId = 0
+                }
+            })
+        })
+    }
+
+    // 一次問 currentsong + status，取得「目前正在播放」的 file / elapsed / duration。
+    // 若目前沒有在播（沒有 file），callback 的 file 會是 null。
+    function fetchPlaybackState(callback) {
+        cmdSocket.enqueue(
+            "command_list_ok_begin\ncurrentsong\nstatus\ncommand_list_end",
+            function (lines, status) {
+                if (!status.startsWith("OK")) {
+                    callback(null, 0, 0)
+                    return
+                }
+
+                let file = null
+                let elapsed = 0
+                let duration = 0
+
+                for (const line of lines) {
+                    if (file === null && line.startsWith("file:")) {
+                        file = line.slice("file:".length).trim()
+                    } else if (line.startsWith("elapsed:")) {
+                        elapsed = parseFloat(line.slice("elapsed:".length)) || 0
+                    } else if (line.startsWith("duration:")) {
+                        duration = parseFloat(line.slice("duration:".length)) || 0
+                    }
+                }
+
+                callback(file, elapsed, duration)
+            }
+        )
+    }
+
+    // Fisher-Yates 洗牌,回傳新陣列(不改動原陣列)
+    function shuffleList(list) {
+        const arr = list.slice()
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            const tmp = arr[i]
+            arr[i] = arr[j]
+            arr[j] = tmp
+        }
+        return arr
+    }
+
+    // 依陣列目前順序,重新指定 id = index(本地播放順序的依據)
+    function assignIds(list) {
+        return list.map((s, idx) => Object.assign({}, s, { id: idx }))
+    }
+
+    // s 鍵:重新洗牌本地播放順序。
+    // 目前正在播放的那首歌不會被中斷,只是重新指定它在新順序中的 id,
+    // 游標(selectedSongId)交由 ensureSelection() 依新的 currentSongId 自動歸位。
+    function reshuffle() {
+        if (root.songList.length === 0)
+        return
+
+        const currentFile = root.currentSong ? root.currentSong.file : null
+
+        let list = root.shuffleList(root.songList)
+        list = root.assignIds(list)
+
+        if (currentFile) {
+            const newCur = list.find(s => s.file === currentFile)
+            if (newCur)
+            root.currentSongId = newCur.id
+            root.selectedSongId = newCur.id
+        }
+
+        root.songList = list
+    }
+
+    // 核心切歌函式:不再操作 mpd 既有的 playlist 位置,
+    // 而是直接把 mpd 的 playlist 清空、塞入指定的那一首、播放。
+    // switchingTrack 期間忽略 idle 監聽送來的 "stop" 事件,
+    // 避免 clear -> add 中間的短暫 stop 狀態被誤判成自然播完。
+    function playSongObject(song) {
+        if (!song)
+        return
+
+        sendMpdCommand("setvol 44")
+
+        root.switchingTrack = true
+
+        cmdSocket.enqueue("clear", function (_lines1, _status1) {
+            cmdSocket.enqueue("add " + root.mpdQuote(song.file), function (_lines2, _status2) {
+                cmdSocket.enqueue("play", function (_lines3, _status3) {
+                    root.currentSongId = song.id
+                    root.selectedSongId = song.id
+                    root.switchingTrack = false
+                })
+            })
+        })
+    }
+
+    // H / L(shift)以及「自然播完」共用的換歌邏輯。
+    // direction: -1 = 上一首(H), +1 = 下一首(L) / 自然播完視為 +1。
+    //
+    // 情況一:目前播放的歌「在」目前篩選(搜尋)結果中
+    //         -> 行為跟沒有 filter 時一樣,播放篩選清單中的上一首/下一首。
+    // 情況二:目前播放的歌「不在」目前篩選結果中
+    //         -> 不管方向,一律播放目前游標選中的那首歌。
+    function advanceTrack(direction) {
+        const filtered = root.getFilteredList()
+        if (filtered.length === 0)
+        return
+
+        const curIdx = filtered.findIndex(s => s.id === root.currentSongId)
+
+        if (curIdx !== -1) {
+            const idx = (curIdx + direction + filtered.length) % filtered.length
+            root.playSongObject(filtered[idx])
+        } else {
+            const selected = root.songList.find(s => s.id === root.selectedSongId)
+            root.playSongObject(selected)
+        }
+    }
+
+    // 是否正在跑 mpd database update,U 鍵期間會被擋掉,避免重複觸發
+    property bool updatingDb: false
+
+    // u:更新歌曲資料庫
+    function startLibraryUpdate() {
+        if (root.updatingDb)
+        return
+
+        root.updatingDb = true
+
+        cmdSocket.enqueue("update", function (lines, status) {
+            if (!status.startsWith("OK")) {
+                console.warn("update failed:", status)
+                root.updatingDb = false
+                return
+            }
+            root.pollUpdateStatus()
+        })
+    }
+
+    // 反覆查 status,看 updating_db 是否還在,直到 job 結束為止
+    function pollUpdateStatus() {
+        cmdSocket.enqueue("status", function (lines, status) {
+            if (!status.startsWith("OK")) {
+                console.warn("status (update poll) failed:", status)
+                root.updatingDb = false
+                return
+            }
+
+            const stillUpdating = lines.some(l => l.startsWith("updating_db:"))
+
+            if (stillUpdating) {
+                updatePollTimer.start()
+            } else {
+                root.updatingDb = false
+                root.fetchLibrary()
+            }
+        })
+    }
+
+    // ==================================================================
+    // 狀態輪詢 socket:每 0.5 秒送一次 "status",解析 elapsed / duration /
+    // state,取代原本 nc + bash case 組成的 mpdStatusScript。
+    // 這條連線只負責「進度條」用的資料,不負責判斷歌曲自然播完
+    // (那個責任交給下面的 idleSocket)。
+    // ==================================================================
+    Socket {
+        id: statusSocket
+        path: root.mpdSocketPath
+        connected: true
+
+        property bool bannerConsumed: false
+        property bool busy: false
+
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                if (!statusSocket.bannerConsumed) {
+                    statusSocket.bannerConsumed = true
+                    return
+                }
+
+                if (line.startsWith("elapsed:")) {
+                    root.elapsedTime = parseFloat(line.slice("elapsed:".length)) || 0
+                } else if (line.startsWith("duration:")) {
+                    root.durationTime = parseFloat(line.slice("duration:".length)) || 0
+                } else if (line.startsWith("state:")) {
+                    root.isPlaying = line.slice("state:".length).trim() === "play"
+                } else if (line.startsWith("OK") || line.startsWith("ACK")) {
+                    statusSocket.busy = false
+                }
+            }
+        }
+
+        onConnectedChanged: {
+            if (!statusSocket.connected) {
+                statusSocket.bannerConsumed = false
+                statusSocket.busy = false
+                statusReconnectTimer.start()
+            }
+        }
+
+        onError: function() {
+            statusSocket.connected = false
+        }
+    }
+
+    Timer {
+        id: statusReconnectTimer
+        interval: 1000
+        repeat: false
+        onTriggered: statusSocket.connected = true
+    }
+
+    Timer {
+        interval: 500
+        running: true
+        repeat: true
+        onTriggered: {
+            if (statusSocket.connected && statusSocket.bannerConsumed && !statusSocket.busy) {
+                statusSocket.busy = true
+                statusSocket.write("status\n")
+                statusSocket.flush()
+            }
+        }
+    }
+
+    Timer {
+        id: updatePollTimer
+        interval: 300
+        repeat: false
+        onTriggered: root.pollUpdateStatus()
+    }
+
+    // ==================================================================
+    // idle 監聽 socket:只在乎「歌曲何時自然播完」。
+    // 送 "idle player" 阻塞等待播放狀態變化,一有回應就查 "status" 拿目前
+    // state,若變成 stop 且不是我們自己在切歌(switchingTrack),
+    // 代表歌曲自然播完,交給 advanceTrack(1) 決定接下來播什麼。
+    // 取代原本 nc + FIFO 組成的 mpdIdleScript。
+    // ==================================================================
+    Socket {
+        id: idleSocket
+        path: root.mpdSocketPath
+        connected: true
+
+        property bool bannerConsumed: false
+        property string awaiting: "idle" // "idle" | "status"
+
+        function sendIdle() {
+            idleSocket.awaiting = "idle"
+            idleSocket.write("idle player\n")
+            idleSocket.flush()
+        }
+
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                if (!idleSocket.bannerConsumed) {
+                    idleSocket.bannerConsumed = true
+                    idleSocket.sendIdle()
+                    return
+                }
+
+                if (idleSocket.awaiting === "idle") {
+                    if (line.startsWith("OK") || line.startsWith("ACK")) {
+                        // idle 因為 player 有變化(或被 noidle)而返回 -> 查詢目前狀態
+                        idleSocket.awaiting = "status"
+                        idleSocket.write("status\n")
+                        idleSocket.flush()
+                    }
+                    // 其餘像 "changed: player" 直接忽略
+                } else {
+                    if (line.startsWith("state:")) {
+                        const state = line.slice("state:".length).trim()
+                        if (state === "stop" && !root.switchingTrack) {
+                            root.advanceTrack(1)
+                        }
+                    } else if (line.startsWith("OK") || line.startsWith("ACK")) {
+                        idleSocket.sendIdle()
+                    }
+                }
+            }
+        }
+
+        onConnectedChanged: {
+            if (!idleSocket.connected) {
+                idleSocket.bannerConsumed = false
+                idleSocket.awaiting = "idle"
+                idleReconnectTimer.start()
+            }
+        }
+
+        onError: function() {
+            idleSocket.connected = false
+        }
+    }
+
+    Timer {
+        id: idleReconnectTimer
+        interval: 1000
+        repeat: false
+        onTriggered: idleSocket.connected = true
+    }
+
+    property var audioData: []
+
+    Process {
+        id: cavaProcess
+        command: ["cava", "-p", Quickshell.env("HOME") + "/.config/cava/my_config"]
+        running: true
+
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: data => {
+                audioData = data.trim().split(";").map(Number)
             }
         }
     }
@@ -203,228 +633,6 @@ Scope {
     onSelectedSongIdChanged: computeWindow()
 
     // ------------------------------------------------------------------
-    // 取得完整歌曲庫(取代原本的 mpc playlist)
-    // 啟動時抓一次全部歌曲、洗牌決定播放順序、指定本地 id,
-    // 然後直接播放洗牌後的第 0 首。
-    // ------------------------------------------------------------------
-    Process {
-        id: libraryFetcher
-        running: true
-        command: [ "mpc", "listall", "-f", "%title%\t%artist%\t%albumartist%\t%album%\t%file%" ]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const lines = this.text.split("\n").filter(l => l.length > 0)
-                let list = lines.map(line => {
-                        const parts = line.split("\t")
-                        return {
-                            title: parts[0] || "",
-                            artist: parts[1] || "",
-                            albumartist: parts[2] || "",
-                            album: parts[3] || "",
-                            file: parts[4] || ""
-                        }
-                })
-
-                list = root.shuffleList(list)
-                list = root.assignIds(list)
-
-                root.songList = list
-
-                if (list.length > 0) {
-                    currentSongId = 0
-                    selectedSongId = 0
-                }
-            }
-        }
-    }
-
-    // Fisher-Yates 洗牌,回傳新陣列(不改動原陣列)
-    function shuffleList(list) {
-        const arr = list.slice()
-        for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
-            const tmp = arr[i]
-            arr[i] = arr[j]
-            arr[j] = tmp
-        }
-        return arr
-    }
-
-    // 依陣列目前順序,重新指定 id = index(本地播放順序的依據)
-    function assignIds(list) {
-        return list.map((s, idx) => Object.assign({}, s, { id: idx }))
-    }
-
-    // s 鍵:重新洗牌本地播放順序。
-    // 目前正在播放的那首歌不會被中斷,只是重新指定它在新順序中的 id,
-    // 游標(selectedSongId)交由 ensureSelection() 依新的 currentSongId 自動歸位。
-    function reshuffle() {
-        if (root.songList.length === 0)
-        return
-
-        const currentFile = root.currentSong ? root.currentSong.file : null
-
-        let list = root.shuffleList(root.songList)
-        list = root.assignIds(list)
-
-        if (currentFile) {
-            const newCur = list.find(s => s.file === currentFile)
-            if (newCur)
-            root.currentSongId = newCur.id
-            root.selectedSongId = newCur.id
-        }
-
-        root.songList = list
-    }
-
-    // ------------------------------------------------------------------
-    // 一次性 mpc / bash 指令執行器
-    // 每次呼叫都動態建立一個新的 Process,跑完自動銷毀,
-    // 避免多個按鍵連續觸發時互相搶用同一個 Process
-    // ------------------------------------------------------------------
-    Component {
-        id: mpcCommandComponent
-        Process {
-            running: true
-            stdout: StdioCollector {}
-        }
-    }
-
-    function runMpc(args) {
-        const obj = mpcCommandComponent.createObject(root, {
-                command: ["mpc"].concat(args)
-        })
-        if (!obj)
-        return
-
-        obj.stdout.streamFinished.connect(function () {
-                obj.destroy()
-        })
-    }
-
-    // 核心切歌函式:不再操作 mpd 既有的 playlist 位置,
-    // 而是直接把 mpd 的 playlist 清空、塞入指定的那一首、播放。
-    // switchingTrack 期間忽略 idle 監聽送來的 "stop" 事件,
-    // 避免 clear -> add 中間的短暫 stop 狀態被誤判成自然播完。
-    function playSongObject(song) {
-        if (!song)
-        return
-
-        root.switchingTrack = true
-
-        const cmd = "mpc clear >/dev/null && mpc add " + root.shQuote(song.file)
-        + " >/dev/null && mpc play >/dev/null"
-
-        const obj = mpcCommandComponent.createObject(root, {
-                command: ["bash", "-c", cmd]
-        })
-        if (!obj) {
-            root.switchingTrack = false
-            return
-        }
-
-        obj.stdout.streamFinished.connect(function () {
-                root.currentSongId = song.id
-                root.selectedSongId = song.id
-                obj.destroy()
-                root.switchingTrack = false
-        })
-    }
-
-    // H / L(shift)以及「自然播完」共用的換歌邏輯。
-    // direction: -1 = 上一首(H), +1 = 下一首(L) / 自然播完視為 +1。
-    //
-    // 情況一:目前播放的歌「在」目前篩選(搜尋)結果中
-    //         -> 行為跟沒有 filter 時一樣,播放篩選清單中的上一首/下一首。
-    // 情況二:目前播放的歌「不在」目前篩選結果中
-    //         -> 不管方向,一律播放目前游標選中的那首歌。
-    function advanceTrack(direction) {
-        const filtered = root.getFilteredList()
-        if (filtered.length === 0)
-        return
-
-        const curIdx = filtered.findIndex(s => s.id === root.currentSongId)
-
-        if (curIdx !== -1) {
-            const idx = (curIdx + direction + filtered.length) % filtered.length
-            root.playSongObject(filtered[idx])
-        } else {
-            const selected = root.songList.find(s => s.id === root.selectedSongId)
-            root.playSongObject(selected)
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 透過 nc 監聽 mpd (localhost:6600),只在乎「歌曲何時自然播完」。
-    // 用 idle player 阻塞等待播放狀態變化,一有事件就查 status 拿目前 state,
-    // 若變成 stop 且不是我們自己在切歌(switchingTrack),
-    // 代表歌曲自然播完(mpd 自己的 1 首 playlist 播完後沒有下一首可接),
-    // 這時交給 advanceTrack(1) 決定接下來播什麼。
-    // 用具名管線(FIFO)讓 nc 可以雙向通訊(送指令 + 讀回應)。
-    // 外層 while true 做斷線重連,避免 mpd 重啟或網路短暫斷開後
-    // 這個腳本整個死掉、自然換歌功能永遠停擺。
-    // ------------------------------------------------------------------
-    readonly property string mpdIdleScript: `
-    FIFO="/tmp/mpd_idle_$$.fifo"
-    mkfifo "$FIFO"
-    exec 3<>"$FIFO"
-    rm -f "$FIFO"
-    while true; do
-    nc localhost 6600 <&3 | {
-    read -r _banner
-    while true; do
-    printf 'idle player\n' >&3
-    while IFS= read -r line; do
-    case "$line" in
-    OK*) break ;;
-    esac
-    done
-
-    printf 'status\n' >&3
-    while IFS= read -r line; do
-    case "$line" in
-    state:*) printf 'STATE:%s\n' "\${line#state: }" ;;
-    OK*) break ;;
-    esac
-    done
-    done
-}
-    sleep 1
-    done
-    `
-
-    Process {
-        running: true
-        command: [ "bash", "-c", root.mpdIdleScript ]
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (line.startsWith("STATE:")) {
-                    const state = line.slice("STATE:".length).trim()
-                    if (state === "stop" && !root.switchingTrack) {
-                        root.advanceTrack(1)
-                    }
-                }
-            }
-        }
-    }
-
-    property var audioData: []
-
-    Process {
-        id: cavaProcess
-        command: ["cava", "-p", Quickshell.env("HOME") + "/.config/cava/my_config"]
-        running: true
-
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: data => {
-                audioData = data.trim().split(";").map(Number)
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
     // Keyboard Dispatcher
     // ------------------------------------------------------------------
 
@@ -448,7 +656,7 @@ Scope {
                 advanceTrack(-1)
             } else {
                 // h:歌曲時間向前(倒退) 5 秒
-                runMpc(["seek", "-5"])
+                sendMpdCommand("seekcur -5")
             }
             break
 
@@ -458,7 +666,7 @@ Scope {
                 advanceTrack(1)
             } else {
                 // l:歌曲時間向後(快轉) 5 秒
-                runMpc(["seek", "+5"])
+                sendMpdCommand("seekcur +5")
             }
             break
 
@@ -491,8 +699,13 @@ Scope {
             break
 
             case Qt.Key_P:
-            // p:播放/暫停切換
-            runMpc(["toggle"])
+            // p:播放/暫停切換(依目前 statusSocket 輪詢到的 isPlaying 狀態決定要送 pause 0 還是 pause 1)
+            sendMpdCommand(root.isPlaying ? "pause 1" : "setvol 44\npause 0")
+            break
+
+            case Qt.Key_U:
+            // u:更新歌曲資料庫
+            startLibraryUpdate()
             break
 
             case Qt.Key_Slash:
@@ -627,8 +840,7 @@ Scope {
                             height: 22
                             radius: 20
 
-                            readonly property bool isSearchBarSlot: index === (root.windowSize - 1)
-                            && (root.mode === "search" || root.filterText !== "")
+                            readonly property bool isSearchBarSlot: index === (root.windowSize - 1) && (root.mode === "search" || root.filterText !== "" || root.updatingDb)
                             readonly property bool isSelected: !isSearchBarSlot && index === root.centerIndex && modelData !== null
                             readonly property bool isPlaying: !isSearchBarSlot && modelData !== null && modelData.id === root.currentSongId
 
@@ -698,14 +910,26 @@ Scope {
                                 elide: Text.ElideRight
                             }
 
-                            // 搜尋列內容
+                            // 搜尋列內容(左側)
                             Text {
-                                visible: delegateItem.isSearchBarSlot
+                                visible: delegateItem.isSearchBarSlot && (root.mode === "search" || root.filterText !== "")
                                 anchors.left: parent.left
                                 anchors.leftMargin: 16
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: (root.mode === "search" ? "/ " : "Search: ") + root.filterText
                                 + (root.mode === "search" ? "▏" : "")
+                                font.family: "DejaVu Sans Mono"
+                                font.pixelSize: 20
+                                color: Colors.color15
+                            }
+
+                            // updating 指示(右側)
+                            Text {
+                                visible: delegateItem.isSearchBarSlot && root.updatingDb
+                                anchors.right: parent.right
+                                anchors.rightMargin: 16
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Song Database is updating…"
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
                                 color: Colors.color15

@@ -14,6 +14,7 @@
       enable = true;
       settings = {
         music_directory = "/home/niiixkz/Music";
+        bind_to_address = "/run/mpd/socket";
 
         audio_output = [
           {
@@ -32,7 +33,6 @@
         replaygain = "track";
       };
       user = "niiixkz";
-      startWhenNeeded = true; # systemd feature: only start MPD service upon connection to its socket
     };
 
     systemd.services.mpd.environment = {
@@ -44,5 +44,8 @@
   homeModules =
     { config, ... }:
     {
+      home.sessionVariables = {
+        MPD_HOST = "/run/mpd/socket";
+      };
     };
 }
