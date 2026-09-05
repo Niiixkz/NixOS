@@ -205,8 +205,7 @@ hl.bind(mainMod .. " + J",  hl.dsp.focus({ direction = "down" }))
 hl.bind(mainMod .. " + K",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + L", hl.dsp.focus({ direction = "right" }))
 
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("bash /home/niiixkz/.config/ncmpcpp/Music.sh"))
-hl.bind("CTRL" .. " + M", hl.dsp.exec_cmd("qs ipc call musicPlayer toggle"))
+hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("qs ipc call musicPlayer toggle"))
 
 for i = 1, 10 do
     local j = i % 10
@@ -250,49 +249,3 @@ for i = 1, 10 do
     hl.workspace_rule({ workspace = i, monitor = "eDP-1", default = true })
     hl.workspace_rule({ workspace = i + 10, monitor = "DP-1", default = true })
 end
-
-hl.workspace_rule({ workspace = 100, monitor = "eDP-1", default = true })
-
-hl.window_rule({
-    name = "playlist",
-    match = {
-        title = "playlist"
-    },
-    float = true,
-    workspace = 100,
-    size = {1302, 894},
-    move = {22, 22},
-})
-
-hl.window_rule({
-    name = "album_cover",
-    match = {
-        title = "album_cover"
-    },
-    float = true,
-    workspace = 100,
-    size = {560, 572},
-    move = {1338, 22},
-})
-
-hl.window_rule({
-    name = "cava",
-    match = {
-        title = "cava"
-    },
-    float = true,
-    workspace = 100,
-    size = {560, 309},
-    move = {1338, 606},
-})
-
-hl.window_rule({
-    name = "playback_panel",
-    match = {
-        title = "playback_panel"
-    },
-    float = true,
-    workspace = 100,
-    size = {1876, 130},
-    move = {22, 930},
-})
