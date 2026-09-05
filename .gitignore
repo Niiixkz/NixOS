@@ -1,16 +1,6 @@
 # nixos
 result
 
-# ncmpcpp
-error.log
-
-# nvim
-lazy-lock.json
-
-# cava
-modules/cli/cava/config/shaders
-modules/cli/cava/config/themes
-
 # fish
 modules/cli/fish/config/conf.d
 
