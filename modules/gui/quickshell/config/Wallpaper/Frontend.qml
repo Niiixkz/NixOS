@@ -6,7 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 
-import qs
+import qs.Utils as Utils
 
 Variants {
     model: Quickshell.screens
@@ -30,15 +30,15 @@ Variants {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
 
-            source: WallpaperBackend.wallpaperCount0 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${WallpaperBackend.wallpaperCount0}/${orientation}.avif`
-            opacity: WallpaperBackend.toggle ? 0 : 1
+            source: Backend.wallpaperCount0 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount0}/${orientation}.avif`
+            opacity: Backend.toggle ? 0 : 1
 
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
             onStatusChanged: {
                 if (status !== Image.Ready || source === "")
                     return
 
-                WallpaperBackend.monitorReady()
+                Backend.monitorReady()
             }
         }
 
@@ -47,29 +47,29 @@ Variants {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
 
-            source: WallpaperBackend.wallpaperCount1 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${WallpaperBackend.wallpaperCount1}/${orientation}.avif`
-            opacity: WallpaperBackend.toggle ? 1 : 0
+            source: Backend.wallpaperCount1 === "" ? "" : `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${Backend.wallpaperCount1}/${orientation}.avif`
+            opacity: Backend.toggle ? 1 : 0
 
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
             onStatusChanged: {
                 if (status !== Image.Ready || source === "")
                     return
 
-                WallpaperBackend.monitorReady()
+                Backend.monitorReady()
             }
         }
 
 
         //Clock
         Item {
-            visible: WallpaperBackend.clockFail[orientation] ? false : true
+            visible: Backend.clockFail[orientation] ? false : true
 
             anchors {
                 left: parent.left
                 top: parent.top
 
-                leftMargin: WallpaperBackend.clockLeftMargin[orientation] - clockTexts.width / 2
-                topMargin: WallpaperBackend.clockTopMargin[orientation] - clockTexts.height / 2
+                leftMargin: Backend.clockLeftMargin[orientation] - clockTexts.width / 2
+                topMargin: Backend.clockTopMargin[orientation] - clockTexts.height / 2
 
                 Behavior on leftMargin {
                     NumberAnimation {
@@ -100,14 +100,8 @@ Variants {
                     font.pixelSize: 62
                     font.weight: Font.Bold
                     text: Qt.formatDateTime(systemClock.date, "hh:mm")
-                    color: (WallpaperBackend.clockTone[orientation] == "light"
-                            ? Colors.background : Colors.foreground)
-
-                    Behavior on color {
-                        ColorAnimation {
-                            easing.type: Easing.InOutQuad
-                        }
-                    }
+                    color: (Backend.clockTone[orientation] == "light"
+                            ? Utils.Colors.background : Utils.Colors.foreground)
                 }
                 Text {
                     Layout.fillWidth: true
@@ -115,14 +109,8 @@ Variants {
                     font.pixelSize: 20
                     font.weight: Font.DemiBold
                     text: Qt.formatDateTime(systemClock.date, "ddd, MM/dd")
-                    color: (WallpaperBackend.clockTone[orientation] == "light"
-                            ? Colors.background : Colors.foreground)
-
-                    Behavior on color {
-                        ColorAnimation {
-                            easing.type:Easing.InOutQuad
-                        }
-                    }
+                    color: (Backend.clockTone[orientation] == "light"
+                            ? Utils.Colors.background : Utils.Colors.foreground)
                 }
             }
         }
