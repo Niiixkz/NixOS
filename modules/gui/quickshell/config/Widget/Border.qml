@@ -3,7 +3,8 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import qs
+
+import qs.Utils as Utils
 
 Variants {
     model: Quickshell.screens
@@ -32,7 +33,7 @@ Variants {
 
             ShapePath {
                 fillRule: ShapePath.OddEvenFill
-                fillColor: Colors.semiTransparentBackground
+                fillColor: Utils.Colors.semiTransparentBackground
                 strokeColor: "transparent"
 
                 startX: 0; startY: 0
@@ -58,7 +59,7 @@ Variants {
 
             ShapePath {
                 fillColor: "transparent"
-                strokeColor: Colors.color5
+                strokeColor: Utils.Colors.color5
                 strokeWidth: 2
 
                 startX: frameShape.ix1; startY: frameShape.inset

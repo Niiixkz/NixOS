@@ -1,7 +1,10 @@
 pragma Singleton
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
+
+import qs.Utils as Utils
 
 Singleton {
     // 目前所有的邊框請求，優先權高的在陣列前面（unshift 進去）
@@ -84,12 +87,12 @@ Singleton {
 
         const resizeAndShow = () => {
             notifyRegionResize();
-            Functions.setTimeout(show, 250);
+            Utils.Functions.setTimeout(show, 250);
         };
 
         if (hideCalls.length) {
             hideCalls.forEach(({ callback, list }) => callback(list.join(",")));
-            Functions.setTimeout(resizeAndShow, 250);
+            Utils.Functions.setTimeout(resizeAndShow, 250);
         } else {
             resizeAndShow();
         }

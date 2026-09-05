@@ -3,19 +3,15 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 
-import qs.Wallpaper
+import qs.Wallpaper as Wallpaper
+import qs.Window as Window
+
+import qs.Widget as Widget
 
 ShellRoot {
-    WallpaperFrontend { }
-    BorderFrontend { }
-    WindowFrontend { }
-    MusicPlayer { }
+    Wallpaper.Frontend { }
+    Window.Frontend { }
 
-    // Border {
-    //     id: border
-    // }
-
-    // Launcher {
-    //     id: launcher
-    // }
+    Widget.Border { }
+    Widget.MusicPlayer { }
 }

@@ -3,7 +3,8 @@ import QtQml.Models
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import qs
+
+import qs.Utils as Utils
 
 Variants {
     model: Quickshell.screens
@@ -227,7 +228,7 @@ Variants {
         }
 
         Connections {
-            target: WindowBackend
+            target: Backend
             function onWindowChange(screenName, operations) {
                 if (screenName !== panelWindow.screenName)
                     return
@@ -247,8 +248,8 @@ Variants {
 
                 radius: 20
 
-                color: Colors.semiTransparentBackground
-                border.color: Colors.color5
+                color: Utils.Colors.semiTransparentBackground
+                border.color: Utils.Colors.color5
                 border.width: 2
 
                 property bool shown: model.shown

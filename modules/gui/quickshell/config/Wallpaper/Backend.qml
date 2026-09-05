@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-import qs
+import qs.Utils as Utils
 
 Singleton {
     property bool toggle: true
@@ -20,7 +20,7 @@ Singleton {
 
     Component.onCompleted: {
         Promise.all([
-            Functions.fetchWithDelayRetry("https://api.github.com/repos/Niiixkz/Wallpaper/git/trees/main", 10000)
+            Utils.Functions.fetchWithDelayRetry("https://api.github.com/repos/Niiixkz/Wallpaper/git/trees/main", 10000)
         ]).then(function([t]) {
             wallpaperTotal = JSON.parse(t).tree
                 .filter(item => item.type === "tree")
@@ -40,9 +40,9 @@ Singleton {
         let base = `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${wallpaperIndex}`;
 
         Promise.all([
-            Functions.fetchWithDelayRetry(`${base}/_H.json`, 10000),
-            Functions.fetchWithDelayRetry(`${base}/_V.json`, 10000),
-            Functions.fetchWithDelayRetry(`${base}/theme.json`, 10000)
+            Utils.Functions.fetchWithDelayRetry(`${base}/_H.json`, 10000),
+            Utils.Functions.fetchWithDelayRetry(`${base}/_V.json`, 10000),
+            Utils.Functions.fetchWithDelayRetry(`${base}/theme.json`, 10000)
         ]).then(function([h, v, t]) {
             hJson     = JSON.parse(h);
             vJson     = JSON.parse(v);
@@ -67,7 +67,7 @@ Singleton {
         running: false
         command: [
             "bash", "-c", `
-                list=("osu!" "neovim")
+                list=("osu!")
 
                 for process in "\${list[@]}"; do
                     if pgrep -f "\$process" | grep -v "^\$\$\\\$" >/dev/null; then
@@ -98,8 +98,8 @@ Singleton {
         readyCount = 0;
         toggle = !toggle;
 
-        Colors.updateInternalColor(themeJson)
-        Functions.setTimeout(function() {
+        Utils.Colors.updateInternalColor(themeJson)
+        Utils.Functions.setTimeout(function() {
             updateClockPosition();
             fetchWallpaperData();
         }, 1000);

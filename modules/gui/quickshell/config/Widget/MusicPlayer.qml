@@ -5,7 +5,9 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import Quickshell.Io
-import qs
+
+import qs.Window as Window
+import qs.Utils as Utils
 
 Scope {
     id: root
@@ -844,7 +846,7 @@ Scope {
                             readonly property bool isSelected: !isSearchBarSlot && index === root.centerIndex && modelData !== null
                             readonly property bool isPlaying: !isSearchBarSlot && modelData !== null && modelData.id === root.currentSongId
 
-                            color: isSelected ? Colors.color15 : "transparent"
+                            color: isSelected ? Utils.Colors.color15 : "transparent"
 
                             // ---- 動態寬度計算 ----
                             readonly property real rowMargin: 12
@@ -890,7 +892,7 @@ Scope {
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
                                 font.bold: delegateItem.isPlaying
-                                color: delegateItem.isSelected ? Colors.color0 : Colors.color15
+                                color: delegateItem.isSelected ? Utils.Colors.color0 : Utils.Colors.color15
                                 elide: Text.ElideRight
                             }
 
@@ -905,7 +907,7 @@ Scope {
                                 text: modelData ? modelData.artist : ""
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
-                                color: delegateItem.isSelected ? Colors.color0 : Colors.color15
+                                color: delegateItem.isSelected ? Utils.Colors.color0 : Utils.Colors.color15
                                 horizontalAlignment: Text.AlignRight
                                 elide: Text.ElideRight
                             }
@@ -920,7 +922,7 @@ Scope {
                                 + (root.mode === "search" ? "▏" : "")
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
-                                color: Colors.color15
+                                color: Utils.Colors.color15
                             }
 
                             // updating 指示(右側)
@@ -932,7 +934,7 @@ Scope {
                                 text: "Song Database is updating…"
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
-                                color: Colors.color15
+                                color: Utils.Colors.color15
                             }
                         }
                     }
@@ -991,7 +993,7 @@ Scope {
                         Rectangle {
                             width: 4
                             height: Math.max(0.001, root.audioData[index])
-                            color: Colors.color15
+                            color: Utils.Colors.color15
 
                             anchors.bottom: parent.bottom
 
@@ -1066,7 +1068,7 @@ Scope {
                             ? (titleMarquee.fullText + titleMarquee.separator + titleMarquee.fullText)
                             : titleMarquee.fullText
                             font: titleFontMetrics.font
-                            color: Colors.color15
+                            color: Utils.Colors.color15
                             x: titleMarquee.needsScroll
                             ? -titleMarquee.charIndex * titleFontMetrics.averageCharacterWidth
                             : (titleMarquee.width - titleMeasure.implicitWidth) / 2
@@ -1119,7 +1121,7 @@ Scope {
                             ? (infoMarquee.fullText + infoMarquee.separator + infoMarquee.fullText)
                             : infoMarquee.fullText
                             font: infoFontMetrics.font
-                            color: Colors.color15
+                            color: Utils.Colors.color15
                             x: infoMarquee.needsScroll
                             ? -infoMarquee.charIndex * infoFontMetrics.averageCharacterWidth
                             : (infoMarquee.width - infoMeasure.implicitWidth) / 2
@@ -1142,13 +1144,13 @@ Scope {
                         width: parent.width
                         height: 6
                         radius: 3
-                        color: Colors.color1
+                        color: Utils.Colors.color1
                         clip: true
                         Rectangle {
                             height: parent.height
                             radius: 3
                             width: parent.width * Math.min(1, Math.max(0, playback.progress))
-                            color: Colors.color15
+                            color: Utils.Colors.color15
                             Behavior on width {
                                 NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
                             }
@@ -1165,7 +1167,7 @@ Scope {
                             text: playback.formatTime(root.elapsedTime)
                             font.family: "DejaVu Sans Mono"
                             font.pixelSize: 20
-                            color: Colors.color15
+                            color: Utils.Colors.color15
                         }
                         Text {
                             anchors.right: parent.right
@@ -1173,7 +1175,7 @@ Scope {
                             text: playback.formatTime(root.durationTime)
                             font.family: "DejaVu Sans Mono"
                             font.pixelSize: 20
-                            color: Colors.color15
+                            color: Utils.Colors.color15
                         }
                     }
                 }
@@ -1226,7 +1228,7 @@ Scope {
             }
 
             if(!targetPanel.visible) {
-                WindowBackend.pushWindow({
+                Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "MusicPlayer",
                         "regions": {
@@ -1239,7 +1241,7 @@ Scope {
                 })
             }
             else{
-                WindowBackend.popWindow("MusicPlayer")
+                Window.Backend.popWindow("MusicPlayer")
             }
         }
     }
