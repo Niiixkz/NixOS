@@ -27,6 +27,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-visualizer = {
+      url = "github:niiixkz/nix-visualizer";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     presenterm = {
       url = "github:mfontanini/presenterm";
     };

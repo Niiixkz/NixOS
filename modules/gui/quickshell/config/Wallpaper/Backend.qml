@@ -9,6 +9,8 @@ import qs.Utils as Utils
 Singleton {
     property bool toggle: true
 
+    property string wallpaperRoot: "/home/niiixkz/Wallpaper"
+
     property int wallpaperTotal: 0
     property var wallpaperIndex: "000"
 
@@ -19,15 +21,24 @@ Singleton {
     property int readyCount: 0
 
     Component.onCompleted: {
-        Promise.all([
-            Utils.Functions.fetchWithDelayRetry("https://api.github.com/repos/Niiixkz/Wallpaper/git/trees/main", 10000)
-        ]).then(function([t]) {
-            wallpaperTotal = JSON.parse(t).tree
-                .filter(item => item.type === "tree")
-                .length;
+        listProcess.running = true
+    }
 
-            fetchWallpaperData();
-        });
+    Process {
+        id: listProcess
+        command: [
+            "bash",
+            "-c",
+            "find /home/niiixkz/Wallpaper -mindepth 1 -maxdepth 1 -type d -name '[0-9][0-9][0-9]' | wc -l"
+        ]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                wallpaperTotal = parseInt(this.text.trim());
+                console.log(wallpaperTotal)
+                fetchWallpaperData();
+            }
+        }
     }
 
     property var hJson: {}
@@ -37,19 +48,34 @@ Singleton {
     function fetchWallpaperData() {
         wallpaperIndex = (Math.floor(Math.random() * wallpaperTotal)).toString().padStart(3, "0");
 
-        let base = `https://raw.githubusercontent.com/Niiixkz/Wallpaper/main/${wallpaperIndex}`;
+        dataProcess.running = true;
+    }
 
-        Promise.all([
-            Utils.Functions.fetchWithDelayRetry(`${base}/_H.json`, 10000),
-            Utils.Functions.fetchWithDelayRetry(`${base}/_V.json`, 10000),
-            Utils.Functions.fetchWithDelayRetry(`${base}/theme.json`, 10000)
-        ]).then(function([h, v, t]) {
-            hJson     = JSON.parse(h);
-            vJson     = JSON.parse(v);
-            themeJson = JSON.parse(t);
+    Process {
+        id: dataProcess
+        command: [
+            "sh",
+            "-c",
+            `
+            cd "${wallpaperRoot}/${wallpaperIndex}"
+            jq -n \
+                --slurpfile h _H.json \
+                --slurpfile v _V.json \
+                --slurpfile t theme.json \
+                '{h:$h[0],v:$v[0],theme:$t[0]}'
+            `
+        ]
 
-            wallpaperTimer.running = true;
-        });
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const obj = JSON.parse(this.text);
+                hJson = obj.h;
+                vJson = obj.v;
+                themeJson = obj.theme;
+
+                wallpaperTimer.running = true;
+            }
+        }
     }
 
     Timer {
