@@ -537,10 +537,10 @@ Scope {
     property var audioData: []
 
     Process {
-        id: cavaProcess
+        id: nixVisualizerProcess
         command: [
             "nix-visualizer",
-            "--sink", "cava_sink.monitor",       // 音訊來源 sink
+            "--sink", "nix-visualizer_sink.monitor",       // 音訊來源 sink
             "--num-bars", "130",                 // 輸出 130 條 bar
             "--bar-max", "281",                  // 每條 bar 的數值上限
             "--fft-size", "8192",                // FFT 視窗變大,頻率解析度更高、延遲也更高
@@ -800,7 +800,7 @@ Scope {
             property alias playlist: playlist
             property alias cover: cover
             property alias playback: playback
-            property alias cava: cava
+            property alias nixVisualizer: nixVisualizer
 
             anchors {
                 top: true
@@ -988,7 +988,7 @@ Scope {
                 }
             }
             Rectangle {
-                id: cava
+                id: nixVisualizer
 
                 x: 1340
                 y: 600
@@ -1220,7 +1220,7 @@ Scope {
                                 p.visible = true
                                 p.playlist.visible = str.includes("playlist")
                                 p.cover.visible = str.includes("cover")
-                                p.cava.visible = str.includes("cava")
+                                p.nixVisualizer.visible = str.includes("nixVisualizer")
                                 p.playback.visible = str.includes("playback")
 
                             }
@@ -1250,18 +1250,18 @@ Scope {
             if(!targetPanel.visible) {
                 Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
-                        "name": "MusicPlayer",
+                        "name": "musicPlayer",
                         "regions": {
                             "playlist": [0, 1311, 890, 0],
                             "cover": [2, 560, 560, 0],
                             "playback": [5, 1880, 141, 0],
-                            "cava": [3, 560, 321, 209.5]
+                            "nixVisualizer": [3, 560, 321, 209.5]
                         },
                         "callback": targetPanel.callback
                 })
             }
             else{
-                Window.Backend.popWindow("MusicPlayer")
+                Window.Backend.popWindow("musicPlayer")
             }
         }
     }
