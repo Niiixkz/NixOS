@@ -33,6 +33,20 @@ Singleton {
         recompute();
     }
 
+    function updateWindow(request) {
+        const target = requestStack.find(r => r.name === request.name);
+
+        if (!target) {
+            return;
+        }
+
+        Object.entries(request.regions).forEach(([key, value]) => {
+            target.regions[key] = value;
+        });
+
+        recompute();
+    }
+
     function popWindow(name) {
         requestStack = requestStack.filter(r => r.name !== name);
         recompute();

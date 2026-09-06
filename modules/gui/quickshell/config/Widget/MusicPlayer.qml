@@ -960,6 +960,13 @@ Scope {
                         }
                     }
                 }
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 250
+                        easing.type: Easing.OutQuint
+                    }
+                }
             }
             ClippingRectangle {
                 id: cover
@@ -986,6 +993,13 @@ Scope {
 
                     smooth: true
                     antialiasing: true
+                }
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 250
+                        easing.type: Easing.OutQuint
+                    }
                 }
             }
             Rectangle {
@@ -1022,6 +1036,13 @@ Scope {
                                 NumberAnimation { duration: 50 }
                             }
                         }
+                    }
+                }
+            
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 250
+                        easing.type: Easing.OutQuint
                     }
                 }
             }
@@ -1200,6 +1221,13 @@ Scope {
                         }
                     }
                 }
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 250
+                        easing.type: Easing.OutQuint
+                    }
+                }
             }
             contentItem {
                 focus: true
@@ -1219,10 +1247,10 @@ Scope {
                                 p.visible = false
                             } else {
                                 p.visible = true
-                                p.playlist.visible = str.includes("playlist")
-                                p.cover.visible = str.includes("cover")
-                                p.nixVisualizer.visible = str.includes("nixVisualizer")
-                                p.playback.visible = str.includes("playback")
+                                p.playlist.visible = str.includes("playlist") ? 1 : 0
+                                p.cover.visible = str.includes("cover") ? 1 : 0
+                                p.nixVisualizer.visible = str.includes("nixVisualizer") ? 1 : 0
+                                p.playback.opacity = str.includes("playback") ? 1 : 0
 
                             }
                         }
