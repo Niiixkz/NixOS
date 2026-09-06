@@ -1248,6 +1248,7 @@ Scope {
             }
 
             if(!targetPanel.visible) {
+                nixVisualizerProcess.signal(10)
                 Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "musicPlayer",
@@ -1262,6 +1263,7 @@ Scope {
             }
             else{
                 Window.Backend.popWindow("musicPlayer")
+                nixVisualizerProcess.signal(12)
             }
         }
     }
