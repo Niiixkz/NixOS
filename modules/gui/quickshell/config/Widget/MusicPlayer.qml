@@ -546,18 +546,19 @@ Scope {
             "--fft-size", "8192",                // FFT 視窗變大,頻率解析度更高、延遲也更高
             "--fft-pad", "1",                    // 不做零填補
             "--min-freq", "20",                  // 分頻下界 20Hz
-            "--max-freq", "15000",               // 分頻上界 15kHz
+            "--max-freq", "20000",               // 分頻上界 20kHz
             "--freq-warp", "1.2",                // 輕微把更多 bar 分給高頻
             "--spatial-smooth-max-radius", "0",  // 不做跨 bar 空間平滑,保留細節
             "--peak-mix", "0.5",                 // 高頻聚合時 RMS 與峰值各半
-            "--dynamic-range-db", "36",          // 動態範圍 36dB,對比適中
+            "--dynamic-range-db", "36",          // 動態範圍
             "--noise-gate-rise", "1",            // 背景噪音水位追蹤上升得慢
-            "--noise-gate-margin", "1",          // 噪聲門門檻寬鬆
+            "--noise-gate-margin", "1.2",        // 噪聲門門檻寬鬆
             "--attack", "1",                     // 上升瞬間到位,沒有延遲
             "--release", "0.75",                 // 基礎重力大小
-            "--release-high-boost", "0.2",       // 高頻重力再加重 20%
+            "--release-high-boost", "0.25",      // 高頻重力再加重
             "--gravity-db-scale", "32",          // 音量越大,下墜重力越強
-            "--fps", "120"                        // 每秒輸出 60 幀
+            "--band-independence", "0.5",        // 頻段獨立程度
+            "--fps", "120"                       // 幀數
         ]
         running: true
 
