@@ -12,6 +12,7 @@ let
 in
 {
   packages = with pkgs; [
+    libavif
     brightnessctl
     cliphist
     dust
