@@ -822,7 +822,7 @@ Scope {
 
             // 根據是否是focused monitor和可見性來決定鍵盤焦點
             WlrLayershell.keyboardFocus: {
-                if (playlistColumn.opacity > 0.0 && isThisMonitorFocused) {
+                if (visible && isThisMonitorFocused) {
                     return WlrKeyboardFocus.Exclusive
                 }
                 return WlrKeyboardFocus.None
@@ -1237,23 +1237,16 @@ Scope {
             }
 
             function callback(str) {
-                console.log(screenName, str)
-
                 panelVariants.instances.forEach(p => {
-                        if(p.screenName !== screenName){
-                            p.visible = false
-                        } else {
-                            if(str === ""){
-                                p.visible = false
-                            } else {
-                                p.visible = true
-                                p.playlist.visible = str.includes("playlist") ? 1 : 0
-                                p.cover.visible = str.includes("cover") ? 1 : 0
-                                p.nixVisualizer.visible = str.includes("nixVisualizer") ? 1 : 0
-                                p.playback.opacity = str.includes("playback") ? 1 : 0
+                    const active = p.screenName === screenName && str !== "";
+                    p.visible = active;
 
-                            }
-                        }
+                    if (!active) return;
+
+                    p.playlist.visible = str.includes("playlist");
+                    p.cover.visible = str.includes("cover");
+                    p.nixVisualizer.visible = str.includes("nixVisualizer");
+                    p.playback.opacity = str.includes("playback");
                 });
             }
         }

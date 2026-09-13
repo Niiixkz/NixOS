@@ -203,7 +203,7 @@ Scope {
 
             // 根據是否是focused monitor和可見性來決定鍵盤焦點
             WlrLayershell.keyboardFocus: {
-                if (panel.opacity > 0.0 && isThisMonitorFocused) {
+                if (visible && isThisMonitorFocused) {
                     return WlrKeyboardFocus.Exclusive
                 }
                 return WlrKeyboardFocus.None
@@ -232,6 +232,14 @@ Scope {
                 readonly property int charWidth: 20
                 readonly property int margin: 20 // Row 四周的留白
                 property font slotFont: Qt.font({ family: "monospace", pixelSize: 20 })
+
+                width: root.columnCount * charWidth + margin * 2
+                height: 3 * rowHeight + margin * 2
+
+                onWidthChanged: Window.Backend.updateWindow({
+                    name: "launcher",
+                    regions: { panel: [5, width, height, 0] }
+                })
 
                 // 一整排「整體滾輪」:每一欄自己貫穿上/中/下三列,
                 // 目標字元會從上面或下面滾過,最後落定在中間那格。
@@ -354,32 +362,6 @@ Scope {
                         easing.type: Easing.OutQuint
                     }
                 }
-
-                // 根據目前欄數/列數重新計算面板大小,並通知 Backend 更新視窗區域。
-                // ⚠️ regions.panel 的陣列格式沿用你原本 pushWindow 呼叫時的
-                //   [5, 300, 50, 0](對應當時 width:300, height:50),
-                //   請對照你的 recompute() 實作確認索引 0、3 的實際意義(margin/offset)。
-                function syncSize() {
-                    var newWidth = root.columnCount * panel.charWidth + panel.margin * 2
-                    var newHeight = 3 * panel.rowHeight + panel.margin * 2
-
-                    panel.width = newWidth
-                    panel.height = newHeight
-
-                    Window.Backend.updateWindow({
-                        name: "launcher",
-                        regions: {
-                            panel: [5, newWidth, newHeight, 0]
-                        }
-                    })
-                }
-
-                Connections {
-                    target: root
-                    function onFilterTextChanged() { panel.syncSize() }
-                }
-
-                Component.onCompleted: syncSize()
             }
             contentItem {
                 focus: true
@@ -389,19 +371,13 @@ Scope {
             }
 
             function callback(str) {
-                console.log(screenName, str)
-
                 panelVariants.instances.forEach(p => {
-                        if(p.screenName !== screenName){
-                            p.visible = false
-                        } else {
-                            if(str === ""){
-                                p.visible = false
-                            } else {
-                                p.visible = true
-                                p.panel.visible = str.includes("panel") ? 1 : 0
-                            }
-                        }
+                    const active = p.screenName === screenName && str !== "";
+                    p.visible = active;
+
+                    if (!active) return;
+
+                    p.panel.visible = str.includes("panel");
                 });
             }
         }
