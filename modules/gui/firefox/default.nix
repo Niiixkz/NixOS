@@ -17,7 +17,6 @@ let
 in
 {
   packages = [
-    pkgs.pywalfox-native
   ];
 
   nixosModules = {
@@ -26,10 +25,6 @@ in
   homeModules =
     { config, lib, ... }:
     {
-      home.activation.pywalfoxInstall = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        ${pkgs.pywalfox-native}/bin/pywalfox install
-      '';
-
       programs = {
         firefox = {
           enable = true;
@@ -81,27 +76,15 @@ in
                 installation_mode = "force_installed";
                 private_browsing = true;
               };
-              # Pywalfox:
-              "pywalfox@frewacom.org" = {
-                install_url = "https://addons.mozilla.org/firefox/downloads/latest/pywalfox/latest.xpi";
-                installation_mode = "force_installed";
-                private_browsing = true;
-              };
               # YouTube 繁體自動翻譯修正
               "yuanchuang940@gmail.com" = {
                 install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-繁體自動翻譯修正/latest.xpi";
                 installation_mode = "force_installed";
                 private_browsing = true;
               };
-              # youtube 找回留言區用戶名稱
+              # Youtube 找回留言區用戶名稱
               "yuanchuang940@gmail.com_return-yt-comment-usernames" = {
                 install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-找回留言區用戶名稱/latest.xpi";
-                installation_mode = "force_installed";
-                private_browsing = true;
-              };
-              # YouTube High Definition
-              "{7b1bf0b6-a1b9-42b0-b75d-252036438bdc}" = {
-                install_url = "https://addons.mozilla.org/firefox/downloads/latest/youtube-high-definition/latest.xpi";
                 installation_mode = "force_installed";
                 private_browsing = true;
               };
