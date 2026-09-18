@@ -823,6 +823,7 @@ Scope {
             // 根據是否是focused monitor和可見性來決定鍵盤焦點
             WlrLayershell.keyboardFocus: {
                 if (visible && isThisMonitorFocused) {
+                    Utils.Functions.imeEnable(false)
                     return WlrKeyboardFocus.Exclusive
                 }
                 return WlrKeyboardFocus.None

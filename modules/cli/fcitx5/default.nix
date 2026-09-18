@@ -28,6 +28,13 @@
           ];
         };
       };
+
       xdg.configFile."fcitx5".source = config.lib.file.mkOutOfStoreSymlink "${diskDir}/config";
+      xdg.dataFile."fcitx5/rime/default.custom.yaml".text = ''
+        patch:
+          ascii_composer:
+            switch_key:
+              Shift_L: noop
+      '';
     };
 }
