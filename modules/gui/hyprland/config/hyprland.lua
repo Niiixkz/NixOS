@@ -236,6 +236,8 @@ hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("mpc next"),       { locked = true })
 hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("mpc toggle"), { locked = true })
 hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("mpc prev"),   { locked = true })
 
+hl.bind("Shift_R", hl.dsp.exec_cmd("fcitx5-remote -t"), { release = true })
+
 --------------------------------
 ---- WINDOWS AND WORKSPACES ----
 --------------------------------

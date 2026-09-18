@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 Singleton {
     id: root
@@ -65,5 +66,17 @@ Singleton {
     }
     //CurrentPath
     // Usage:     property var currentPath: Functions.currentPath(Qt.resolvedUrl("."))
+
+    //imeEnable
+    Process {
+        id: imeProcess
+        running: false
+    }
+
+    function imeEnable(enable) {
+        imeProcess.command = ["fcitx5-remote", enable ? "-o" : "-c"]
+        imeProcess.running = true
+    }
+    //imeEnable
 }
 

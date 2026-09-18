@@ -144,11 +144,6 @@ Scope {
     }
 
     function handleSearchKey(event) {
-        if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
-            pasteProcess.running = true
-            return
-        }
-
         switch (event.key) {
             case Qt.Key_Return:
             case Qt.Key_Enter:
@@ -204,6 +199,7 @@ Scope {
             // 根據是否是focused monitor和可見性來決定鍵盤焦點
             WlrLayershell.keyboardFocus: {
                 if (visible && isThisMonitorFocused) {
+                    Utils.Functions.imeEnable(false)
                     return WlrKeyboardFocus.Exclusive
                 }
                 return WlrKeyboardFocus.None
