@@ -694,13 +694,23 @@ Scope {
             break
 
             case Qt.Key_J:
-            // j:播放清單游標向下一格
-            moveSelection(1)
+            if (shift) {
+                // J:播放清單游標向下翻頁
+                moveSelection(windowSize)
+            } else {
+                // j:播放清單游標向下一格
+                moveSelection(1)
+            }
             break
 
             case Qt.Key_K:
-            // k:播放清單游標向上一格
-            moveSelection(-1)
+            if (shift) {
+                // K:播放清單游標向上翻頁
+                moveSelection(-windowSize)
+            } else {
+                // k:播放清單游標向上一格
+                moveSelection(-1)
+            }
             break
 
             case Qt.Key_Return:
@@ -731,6 +741,22 @@ Scope {
             startLibraryUpdate()
             break
 
+            case Qt.Key_T:
+            // t:複製選中歌曲的歌名
+            if (!shift)
+                copySelectedField("title")
+            break
+
+            case Qt.Key_A:
+            if (shift) {
+                // A:複製選中歌曲的專輯
+                copySelectedField("album")
+            } else {
+                // a:複製選中歌曲的演出者(作曲家)名
+                copySelectedField("artist")
+            }
+            break
+
             case Qt.Key_Slash:
             // /:進入 SEARCH MODE
             root.mode = "search"
@@ -753,6 +779,35 @@ Scope {
                 root.filterText += this.text.replace("\n", "")
             }
         }
+    }
+
+    Process {
+        id: copyProcess
+        command: ["wl-copy", "--", ""]
+    }
+
+    function copyToClipboard(text) {
+        if (!text || text.length === 0)
+            return
+
+        copyProcess.command = ["wl-copy", "--", text]
+        copyProcess.running = true
+    }
+
+    // 複製「目前游標選中」歌曲的指定欄位
+    // field: "title" | "artist" | "album"
+    function copySelectedField(field) {
+        const song = root.songList.find(s => s.id === root.selectedSongId)
+        if (!song)
+            return
+
+        let value = song[field]
+
+        // 沒有 Artist tag 時,退而求其次用 AlbumArtist
+        if (field === "artist" && (!value || value.length === 0))
+            value = song.albumartist
+
+        root.copyToClipboard(value)
     }
 
     // ---- SEARCH MODE ----
