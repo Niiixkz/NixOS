@@ -9,7 +9,7 @@ let
   nh = inputs.nh.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
-  packages = with pkgs; [
+  packages = [
     nh
   ];
 
@@ -20,7 +20,7 @@ in
       clean = {
         enable = true;
         dates = "daily";
-        extraArgs = "--keep 5";
+        extraArgs = "--keep 3";
       };
     };
   };
