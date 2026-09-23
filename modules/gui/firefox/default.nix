@@ -88,6 +88,12 @@ in
                 installation_mode = "force_installed";
                 private_browsing = true;
               };
+              # Pixiv Toolkit
+              "{6706d386-2d33-4e1e-bbf1-51b9e1ce47e1}" = {
+                install_url = "https://addons.mozilla.org/firefox/downloads/latest/pixiv-toolkit/latest.xpi";
+                installation_mode = "force_installed";
+                private_browsing = true;
+              };
             };
 
             # ---- PREFERENCES ----
