@@ -11,17 +11,17 @@ hl.monitor({
     scale    = 1,
 })
 
-hl.monitor({
-    output   = "DP-1",
-    mode     = "1920x1080@74.99",
-    position = "-1920x0",
-    scale    = 1,
-})
+-- hl.monitor({
+--     output   = "DP-1",
+--     mode     = "1920x1080@74.99",
+--     position = "-1920x0",
+--     scale    = 1,
+-- })
 
 hl.monitor({
     output   = "HDMI-A-1",
     mode     = "1920x1080@60",
-    position = "1920x0",
+    position = "-1920x0",
     scale    = 1,
 })
 
@@ -252,5 +252,5 @@ local suppressMaximizeRule = hl.window_rule({
 
 for i = 1, 10 do
     hl.workspace_rule({ workspace = i, monitor = "eDP-1", default = true })
-    hl.workspace_rule({ workspace = i + 10, monitor = "DP-1", default = true })
+    hl.workspace_rule({ workspace = i + 10, monitor = "HDMI-A-1", default = true })
 end
