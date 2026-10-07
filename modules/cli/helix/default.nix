@@ -6,7 +6,22 @@
 }:
 
 let
-  helix = inputs.helix.packages.${pkgs.stdenv.hostPlatform.system}.helix;
+  helix-src = pkgs.stdenvNoCC.mkDerivation {
+    name = "helix-patched";
+    src = inputs.helix;
+    nativeBuildInputs = [ pkgs.dasel ];
+    buildPhase = ''
+      cat languages.toml | dasel -i toml --root 'grammar = grammar.filter($this.name != "perl")' > languages.toml.new
+      mv languages.toml.new languages.toml
+
+      mkdir -p "$out"
+      cp -r . "$out"
+    '';
+  };
+
+  helix = pkgs.callPackage helix-src { };
+
+  # helix = inputs.helix.packages.${pkgs.stdenv.hostPlatform.system}.helix;
   nixd = inputs.nixd.packages.${pkgs.stdenv.hostPlatform.system}.nixd;
   qml-language-server =
     inputs.qml-language-server.packages.${pkgs.stdenv.hostPlatform.system}.default;
