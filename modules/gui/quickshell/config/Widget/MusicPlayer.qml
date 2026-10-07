@@ -142,23 +142,9 @@ Scope {
 
         onConnectedChanged: {
             if (!cmdSocket.connected) {
-                cmdSocket.bannerConsumed = false
-                cmdSocket.current = null
-                cmdSocket.pendingLines = []
-                cmdReconnectTimer.start()
+                cmdSocket.connected = true
             }
         }
-
-        onError: function() {
-            cmdSocket.connected = false
-        }
-    }
-
-    Timer {
-        id: cmdReconnectTimer
-        interval: 1000
-        repeat: false
-        onTriggered: cmdSocket.connected = true
     }
 
     // 送一個不需要處理回傳內容的一次性指令
@@ -425,22 +411,9 @@ Scope {
 
         onConnectedChanged: {
             if (!statusSocket.connected) {
-                statusSocket.bannerConsumed = false
-                statusSocket.busy = false
-                statusReconnectTimer.start()
+                statusSocket.connected = true
             }
         }
-
-        onError: function() {
-            statusSocket.connected = false
-        }
-    }
-
-    Timer {
-        id: statusReconnectTimer
-        interval: 1000
-        repeat: false
-        onTriggered: statusSocket.connected = true
     }
 
     Timer {
@@ -516,22 +489,9 @@ Scope {
 
         onConnectedChanged: {
             if (!idleSocket.connected) {
-                idleSocket.bannerConsumed = false
-                idleSocket.awaiting = "idle"
-                idleReconnectTimer.start()
+                idleSocket.connected = true
             }
         }
-
-        onError: function() {
-            idleSocket.connected = false
-        }
-    }
-
-    Timer {
-        id: idleReconnectTimer
-        interval: 1000
-        repeat: false
-        onTriggered: idleSocket.connected = true
     }
 
     property var audioData: []
