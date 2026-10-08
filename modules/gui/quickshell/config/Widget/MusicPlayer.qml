@@ -33,7 +33,7 @@ Scope {
 
     readonly property var currentSong: songList.find(s => s.id === currentSongId) || null
 
-    // 目前操作模式:"normal" | "search"
+    // 目前操作模式:"normal" | "search" | "confirm"
     property string mode: "normal"
 
     // 固定顯示列數,不捲動;游標固定在正中間 (index = centerIndex)
@@ -338,6 +338,181 @@ Scope {
     // 是否正在跑 mpd database update,U 鍵期間會被擋掉,避免重複觸發
     property bool updatingDb: false
 
+    // ------------------------------------------------------------------
+    // 搜尋列右側「通用狀態區」
+    // UpdateDB 提示與刪除確認共用同一塊區域,所以改用通用名稱:
+    //   statusLabel  : 固定顯示的前綴文字(空字串 = 右側不顯示)
+    //   statusTarget : 需要使用者逐字輸入的目標字串(例如 "Yes",可為空)
+    //   statusTyped  : 目標字串已正確輸入的字元數(已輸入的字母會變亮)
+    // ------------------------------------------------------------------
+    property int statusTyped: 0
+    readonly property string statusTarget: root.mode === "confirm" ? root.confirmWord : ""
+    readonly property string statusLabel: {
+        if (root.mode === "confirm")
+        return "Confirm deletion : "
+        if (root.deleting)
+        return "Deleting…"
+        if (root.updatingDb)
+        return "Song Database is updating…"
+        return ""
+    }
+
+    // ------------------------------------------------------------------
+    // 刪除歌曲 (d)
+    // ------------------------------------------------------------------
+    readonly property string musicRoot: "/home/niiixkz/Music"
+    readonly property string confirmWord: "Yes"    // 大小寫必須完全一致
+    property bool deleting: false
+    // 刪除時「正在播放的歌也被刪」且當時確實在播放 -> 刪完後要自動播放新選中的歌
+    property bool resumeAfterDelete: false
+
+    // 只接受「專輯資料夾/檔名」這種兩層結構,避免 ".." 之類的路徑跑出 musicRoot
+    function isSafeSongPath(file) {
+        const parts = String(file).split("/")
+        if (parts.length !== 2)
+        return false
+        return parts[0] !== "" && parts[0] !== "." && parts[0] !== ".." && parts[1] !== ""
+    }
+
+    // d:進入刪除確認。搜尋字串為空時不動作(避免誤刪整個音樂庫)。
+    function requestDelete() {
+        if (root.filterText.trim() === "")
+        return
+        if (root.updatingDb || root.deleting)
+        return
+        if (root.getFilteredList().some(s => root.isSafeSongPath(s.file)) === false)
+        return
+
+        root.statusTyped = 0
+        root.mode = "confirm"
+    }
+
+    function cancelDelete() {
+        root.statusTyped = 0
+        root.mode = "normal"
+    }
+
+    // 確認通過後,刪除「目前搜尋結果」中的所有歌曲
+    function executeDelete() {
+        const targets = root.getFilteredList().filter(s => root.isSafeSongPath(s.file))
+
+        root.statusTyped = 0
+        root.mode = "normal"
+
+        if (targets.length === 0)
+        return
+
+        root.deleting = true
+
+        // 若正在播放的歌也要被刪:先停掉 mpd,並暫時擋住 idle 的「自然播完」判斷,
+        // 避免它自動跳去播下一首同樣即將被刪除的歌。
+        root.resumeAfterDelete = false
+        if (targets.some(s => s.id === root.currentSongId)) {
+            root.resumeAfterDelete = root.isPlaying
+            root.switchingTrack = true
+            root.sendMpdCommand("clear")
+        }
+
+        deleteProcess.command = ["bash", "-c", root.deleteScript, "_", root.musicRoot]
+        .concat(targets.map(s => s.file))
+        deleteProcess.running = true
+    }
+
+    // 刪除完成後(只處理腳本回報「確實刪掉了」的檔案)同步本地清單
+    function finishDelete(deletedFiles) {
+        const gone = {}
+        deletedFiles.forEach(f => { gone[f] = true })
+
+        const oldList = root.songList
+        const n = oldList.length
+        const currentFile = root.currentSong ? root.currentSong.file : null
+
+        // 新游標位置:起點 = currentSongId(可用時),否則 selectedSongId;
+        // 從起點開始 id++(循環)直到找到沒被刪的歌
+        let selectedFile = null
+        let selIdx = oldList.findIndex(s => s.id === root.currentSongId)
+        if (selIdx === -1)
+        selIdx = oldList.findIndex(s => s.id === root.selectedSongId)
+        if (selIdx !== -1) {
+            for (let i = 0; i < n; i++) {
+                const cand = oldList[(selIdx + i) % n]
+                if (!gone[cand.file]) {
+                    selectedFile = cand.file
+                    break
+                }
+            }
+        }
+
+        // 先拿掉搜尋,再重新指派 id,讓游標在完整清單上歸位
+        root.filterText = ""
+
+        let list = oldList.filter(s => !gone[s.file])
+        list = root.assignIds(list)
+
+        let newCurrentId = -1
+        if (currentFile && !gone[currentFile]) {
+            const c = list.find(s => s.file === currentFile)
+            if (c)
+            newCurrentId = c.id
+        }
+
+        root.currentSongId = newCurrentId
+        root.songList = list
+
+        const newSelected = selectedFile ? list.find(s => s.file === selectedFile) : null
+        root.selectedSongId = newSelected ? newSelected.id : -1
+
+        root.switchingTrack = false
+        root.deleting = false
+
+        // 通知 mpd 資料庫檔案已消失(不呼叫 fetchLibrary,所以不會重新洗牌)
+        root.sendMpdCommand("update")
+
+        // 播放被中斷(正在播的歌被刪)-> 開始播放新選中的那首
+        if (root.resumeAfterDelete && newSelected)
+        root.playSongObject(newSelected)
+        root.resumeAfterDelete = false
+    }
+
+    // 檔案與專輯資料夾都有 +i,所以流程是:
+    //   1. 先解除涉及的專輯資料夾的 +i(否則資料夾內不能刪檔)
+    //   2. 解除歌曲 +i 並刪除,成功的才回報 (stdout 一行一個 file)
+    //   3. 檢查每個動到的資料夾:除了 cover.avif 外沒有其他檔案 -> 刪封面、刪資料夾;
+    //      否則把資料夾 +i 補回去
+    // chattr 需要 root,這裡用 `sudo -n chattr`(需 sudoers 設 NOPASSWD)。
+    readonly property string deleteScript: [
+        'root="$1"; shift',
+        'declare -A dirs',
+        'for f in "$@"; do dirs["${f%%/*}"]=1; done',
+        'for d in "${!dirs[@]}"; do sudo -n chattr -i "$root/$d"; done',
+        'for f in "$@"; do',
+        '  sudo -n chattr -i "$root/$f"',
+        '  rm -f -- "$root/$f"',
+        '  if [ ! -e "$root/$f" ]; then echo "$f"; fi',
+        'done',
+        'for d in "${!dirs[@]}"; do',
+        '  p="$root/$d"',
+        '  if [ -z "$(find "$p" -mindepth 1 -maxdepth 1 ! -name cover.avif -print -quit)" ]; then',
+        '    sudo -n chattr -i "$p/cover.avif" 2>/dev/null',
+        '    rm -f -- "$p/cover.avif"',
+        '    rmdir -- "$p" 2>/dev/null || sudo -n chattr +i "$p"',
+        '  else',
+        '    sudo -n chattr +i "$p"',
+        '  fi',
+        'done'
+    ].join("\n")
+
+    Process {
+        id: deleteProcess
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const files = this.text.split("\n").filter(l => l !== "")
+                root.finishDelete(files)
+            }
+        }
+    }
+
     // u:更新歌曲資料庫
     function startLibraryUpdate() {
         if (root.updatingDb)
@@ -622,6 +797,8 @@ Scope {
     function handleKey(event) {
         if (root.mode === "search") {
             handleSearchKey(event)
+        } else if (root.mode === "confirm") {
+            handleConfirmKey(event)
         } else {
             handleNormalKey(event)
         }
@@ -701,6 +878,12 @@ Scope {
             startLibraryUpdate()
             break
 
+            case Qt.Key_D:
+            // d:刪除目前搜尋結果的所有歌曲(需搜尋字串非空,並輸入 Yes 確認)
+            if (!shift)
+                requestDelete()
+            break
+
             case Qt.Key_T:
             // t:複製選中歌曲的歌名
             if (!shift)
@@ -768,6 +951,30 @@ Scope {
             value = song.albumartist
 
         root.copyToClipboard(value)
+    }
+
+    // ---- CONFIRM MODE ----
+    // 必須依序輸入 confirmWord("Yes",大小寫須一致),中途輸入錯誤就取消刪除。
+    // 單純按下 Shift / Ctrl 等修飾鍵不算輸入,直接忽略(否則打大寫 Y 時會被 Shift 取消)。
+    function handleConfirmKey(event) {
+        const modifierKeys = [
+            Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_AltGr,
+            Qt.Key_Meta, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_CapsLock
+        ]
+        if (modifierKeys.indexOf(event.key) !== -1)
+        return
+
+        if (root.statusTyped >= root.confirmWord.length && (event.key === Qt.Key_Enter || event.key === Qt.Key_Return))
+        root.executeDelete()
+
+        const expected = root.confirmWord[root.statusTyped]
+
+        if (event.text !== expected) {
+            root.cancelDelete()
+            return
+        }
+
+        root.statusTyped++
     }
 
     // ---- SEARCH MODE ----
@@ -879,7 +1086,7 @@ Scope {
                             height: 22
                             radius: 20
 
-                            readonly property bool isSearchBarSlot: index === (root.windowSize - 1) && (root.mode === "search" || root.filterText !== "" || root.updatingDb)
+                            readonly property bool isSearchBarSlot: index === (root.windowSize - 1) && (root.mode === "search" || root.filterText !== "" || root.statusLabel !== "")
                             readonly property bool isSelected: !isSearchBarSlot && index === root.centerIndex && modelData !== null
                             readonly property bool isPlaying: !isSearchBarSlot && modelData !== null && modelData.id === root.currentSongId
 
@@ -962,16 +1169,32 @@ Scope {
                                 color: Utils.Colors.color15
                             }
 
-                            // updating 指示(右側)
-                            Text {
-                                visible: delegateItem.isSearchBarSlot && root.updatingDb
+                            // 通用狀態區(右側):UpdateDB 提示 / 刪除確認共用
+                            // 前綴文字固定 color15;目標字串(如 "Yes")尚未輸入的字母是 color1,
+                            // 已正確輸入的字母變成 color15。
+                            Row {
+                                visible: delegateItem.isSearchBarSlot && root.statusLabel !== ""
                                 anchors.right: parent.right
                                 anchors.rightMargin: 16
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "Song Database is updating…"
-                                font.family: "DejaVu Sans Mono"
-                                font.pixelSize: 20
-                                color: Utils.Colors.color15
+
+                                Text {
+                                    text: root.statusLabel
+                                    font.family: "DejaVu Sans Mono"
+                                    font.pixelSize: 20
+                                    color: Utils.Colors.color15
+                                }
+
+                                Repeater {
+                                    model: root.statusTarget.length
+
+                                    Text {
+                                        text: root.statusTarget[index]
+                                        font.family: "DejaVu Sans Mono"
+                                        font.pixelSize: 20
+                                        color: index < root.statusTyped ? Utils.Colors.color15 : Utils.Colors.color1
+                                    }
+                                }
                             }
                         }
                     }
