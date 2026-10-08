@@ -12,242 +12,121 @@ import qs.Utils as Utils
 Scope {
     id: root
 
-    // ------------------------------------------------------------------
-    // 資料狀態
-    // ------------------------------------------------------------------
-    // songList 現在是「本地維護」的完整歌曲清單,來源是 mpd 的 listallinfo (整個音樂庫),
-    // 不再依賴 mpd 自己的 playlist / playlist id。
-    // 啟動時洗牌一次,洗牌後的陣列順序 = 我們自己的播放順序,
-    // 每首歌的 id 就是它在這個陣列裡的 index(由 assignIds() 統一指定)。
-    property var songList: []          // 本地歌曲清單(含 id / title / artist / albumartist / album / file)
-    property string filterText: ""     // 模糊搜尋字串
-    property int currentSongId: -1     // 目前「正在播放」的歌曲 id(對應 songList 裡的本地 id)
-    property int selectedSongId: -1    // 目前「游標選中」的歌曲 id (j/k 移動、Enter 播放)
-
-    // mpd 實際的 playlist 永遠只會有 0~1 首歌(就是目前正在播的那首)。
-    // 每次切歌都是 clear && add <file> && play (透過 mpd socket 直接送 protocol 指令)。
-    // switchingTrack 用來避免:我們自己觸發 clear/add/play 時,
-    // 中間會有短暫的 "stop" 狀態,若被 idle 監聽誤判成「自然播完」
-    // 會導致無限連續換歌的迴圈。
-    property bool switchingTrack: false
-
-    readonly property var currentSong: songList.find(s => s.id === currentSongId) || null
-
-    // 目前操作模式:"normal" | "search" | "confirm"
-    property string mode: "normal"
+    // ==================================================================
+    // 常數設定
+    // ==================================================================
+    readonly property string mpdSocketPath: "/run/mpd/socket"
+    readonly property string musicRoot: "/home/niiixkz/Music"
+    readonly property string confirmWord: "Yes"     // 刪除確認字串,大小寫必須完全一致
+    readonly property int defaultVolume: 44         // 播放 / 恢復播放時套用的音量
 
     // 固定顯示列數,不捲動;游標固定在正中間 (index = centerIndex)
     readonly property int windowSize: 39
-    // 依 windowSize 動態算出,避免改 windowSize 時忘記手動同步這個數字
     readonly property int centerIndex: Math.floor(windowSize / 2)
-    property var windowList: []             // 長度固定 windowSize
 
+    // listallinfo 回傳的 tag 名稱 -> 本地歌曲欄位名稱
+    readonly property var tagFields: ({
+        "Title": "title",
+        "Artist": "artist",
+        "AlbumArtist": "albumartist",
+        "Album": "album"
+    })
+
+    // 純修飾鍵:在刪除確認模式下不算輸入
+    readonly property var modifierKeys: [
+        Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_AltGr,
+        Qt.Key_Meta, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_CapsLock
+    ]
+
+    // ==================================================================
+    // 資料狀態
+    // ==================================================================
+    // songList 是本地維護的完整歌曲清單(來源為 mpd 的 listallinfo),
+    // 啟動時洗牌一次,陣列順序即本地播放順序,
+    // 每首歌的 id 就是它在陣列中的 index(由 assignIds() 統一指定)。
+    // 欄位: id / title / artist / albumartist / album / file / searchText
+    property var songList: []
+    property string filterText: ""      // 模糊搜尋字串
+    property int currentSongId: -1      // 正在播放的歌曲 id
+    property int selectedSongId: -1     // 游標選中的歌曲 id (j/k 移動、Enter 播放)
+    readonly property var currentSong: songById(currentSongId) || null
+
+    // 操作模式: "normal" | "search" | "confirm"
+    property string mode: "normal"
+
+    property var windowList: []         // 畫面上顯示的歌曲,長度固定 windowSize,空位為 null
+
+    // 播放進度(由 statusSocket 輪詢更新)
     property real elapsedTime: 0
     property real durationTime: 0
     property bool isPlaying: false
 
-    // mpd unix socket 路徑
-    readonly property string mpdSocketPath: "/run/mpd/socket"
+    // 視覺化頻譜資料(由 nixVisualizerProcess 更新)
+    property var audioData: []
+
+    // ==================================================================
+    // 流程旗標
+    // ==================================================================
+    // mpd 的 playlist 永遠只有 0~1 首(目前播放的那首),每次切歌都是 clear + add + play。
+    // 切歌期間會短暫出現 stop 狀態,switchingTrack 用來避免 idle 監聽把它誤判成
+    // 「自然播完」而造成連續換歌。
+    property bool switchingTrack: false
+    property bool updatingDb: false         // 正在更新 mpd 資料庫(期間擋掉重複的 u 鍵)
+    property bool deleting: false           // 正在刪除檔案
+    property bool resumeAfterDelete: false  // 刪除了正在播放的歌,且當時在播放 -> 刪完後自動播放新選中的歌
 
     // ------------------------------------------------------------------
-    // 篩選 / 模糊搜尋
+    // 搜尋列右側「通用狀態區」(資料庫更新提示與刪除確認共用)
+    //   statusLabel  : 固定顯示的前綴文字(空字串 = 不顯示)
+    //   statusTarget : 需要逐字輸入的目標字串(可為空)
+    //   statusTyped  : 目標字串已正確輸入的字元數(已輸入的字母會變亮)
     // ------------------------------------------------------------------
-
-    // 對 title / artist / album 合併後做模糊比對
-    function matchesFilter(song) {
-        const trimmed = filterText.trim()
-        if (trimmed === "")
-        return true
-
-        const combined = (song.title + " " + song.artist + " " + song.album).toLowerCase()
-        const keywords = trimmed.toLowerCase().split(/\s+/).filter(k => k.length > 0)
-
-        return keywords.every(k => combined.includes(k))
+    property int statusTyped: 0
+    readonly property string statusTarget: mode === "confirm" ? confirmWord : ""
+    readonly property string statusLabel: {
+        if (mode === "confirm")
+            return "Confirm deletion : "
+        if (deleting)
+            return "Deleting…"
+        if (updatingDb)
+            return "Song Database is updating…"
+        return ""
     }
 
-    function getFilteredList() {
-        return songList.filter(matchesFilter)
+    // ==================================================================
+    // 小工具
+    // ==================================================================
+
+    // 將 index 包回 [0, length) 範圍(正確處理負數)
+    function wrapIndex(index, length) {
+        return ((index % length) + length) % length
     }
 
-    // ------------------------------------------------------------------
-    // 小工具:mpd protocol 字串跳脫(雙引號包起來,反斜線 / 引號需要 escape)
-    // 取代原本給 shell 用的 shQuote
-    // ------------------------------------------------------------------
+    // 以 id 查詢歌曲,找不到回傳 undefined
+    function songById(id) {
+        return songList.find(s => s.id === id)
+    }
+
+    // mpd protocol 字串跳脫(雙引號包起來,反斜線 / 引號需要 escape)
     function mpdQuote(str) {
         return '"' + String(str).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'
     }
 
-    // ==================================================================
-    // MPD 指令佇列 socket:所有一次性指令 (listallinfo / clear / add /
-    // play / seekcur / pause) 都透過這條連線依序送出。
-    // MPD protocol 一次只能有一個指令在途,所以這裡自己維護一個 queue,
-    // 上一個指令收到 OK/ACK 之後才會送下一個。
-    // ==================================================================
-    Socket {
-        id: cmdSocket
-        path: root.mpdSocketPath
-        connected: true
-
-        property bool bannerConsumed: false
-        property bool fetchedOnce: false
-        property var pendingLines: []
-        property var queue: []
-        property var current: null
-
-        function enqueue(command, resolve) {
-            cmdSocket.queue.push({ command: command, resolve: resolve })
-            cmdSocket.processQueue()
-        }
-
-        function processQueue() {
-            if (!cmdSocket.bannerConsumed)
-            return
-            if (cmdSocket.current !== null)
-            return
-            if (cmdSocket.queue.length === 0)
-            return
-
-            cmdSocket.current = cmdSocket.queue.shift()
-            cmdSocket.write(cmdSocket.current.command + "\n")
-            cmdSocket.flush()
-        }
-
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (!cmdSocket.bannerConsumed) {
-                    // 第一行是 mpd 的 banner,例如 "OK MPD 0.23.x"
-                    cmdSocket.bannerConsumed = true
-                    if (!cmdSocket.fetchedOnce) {
-                        cmdSocket.fetchedOnce = true
-                        root.fetchLibrary()
-                    }
-                    cmdSocket.processQueue()
-                    return
-                }
-
-                if (line.startsWith("OK") || line.startsWith("ACK")) {
-                    const finished = cmdSocket.current
-                    const lines = cmdSocket.pendingLines
-                    cmdSocket.current = null
-                    cmdSocket.pendingLines = []
-                    if (finished && finished.resolve)
-                    finished.resolve(lines, line)
-                    cmdSocket.processQueue()
-                } else {
-                    cmdSocket.pendingLines.push(line)
-                }
-            }
-        }
-
-        onConnectedChanged: {
-            if (!cmdSocket.connected) {
-                cmdSocket.connected = true
-            }
-        }
+    // mpd 回應結束行(OK 或 ACK)
+    function isResponseEnd(line) {
+        return line.startsWith("OK") || line.startsWith("ACK")
     }
 
-    // 送一個不需要處理回傳內容的一次性指令
-    function sendMpdCommand(command, callback) {
-        cmdSocket.enqueue(command, callback || function () {})
+    function isOk(status) {
+        return status.startsWith("OK")
     }
 
-    // ------------------------------------------------------------------
-    // 取得完整歌曲庫
-    // 用 listallinfo 拿到完整 tag 資訊,自己解析、洗牌決定播放順序、
-    // 指定本地 id,然後直接播放洗牌後的第 0 首。
-    // ------------------------------------------------------------------
-    function fetchLibrary() {
-        cmdSocket.enqueue("listallinfo", function (lines, status) {
-            if (!status.startsWith("OK")) {
-                console.warn("listallinfo failed:", status)
-                return
-            }
-
-            const list = []
-            let cur = null
-
-            for (const line of lines) {
-                const idx = line.indexOf(": ")
-                if (idx === -1)
-                continue
-
-                const key = line.slice(0, idx)
-                const value = line.slice(idx + 2)
-
-                if (key === "file") {
-                    if (cur)
-                    list.push(cur)
-                    cur = { title: "", artist: "", albumartist: "", album: "", file: value }
-                } else if (cur) {
-                    if (key === "Title")
-                    cur.title = value
-                    else if (key === "Artist")
-                    cur.artist = value
-                    else if (key === "AlbumArtist")
-                    cur.albumartist = value
-                    else if (key === "Album")
-                    cur.album = value
-                }
-            }
-            if (cur)
-            list.push(cur)
-
-            let shuffled = root.shuffleList(list)
-            shuffled = root.assignIds(shuffled)
-
-            root.songList = shuffled
-
-            if (shuffled.length === 0)
-            return
-
-            // 嘗試向 mpd 問目前實際正在播的是哪個 file,
-            // 若能對到 songList 裡的某首歌,就沿用它(id / elapsed / duration);
-            // 若沒有資料(mpd 目前沒在播 / 對不到),就退回第 0 首。
-            root.fetchPlaybackState(function (file, elapsed, duration) {
-                const matched = file ? shuffled.find(s => s.file === file) : null
-
-                if (matched) {
-                    root.currentSongId = matched.id
-                    root.selectedSongId = matched.id
-                    root.elapsedTime = elapsed
-                    root.durationTime = duration
-                } else {
-                    root.currentSongId = 0
-                    root.selectedSongId = 0
-                }
-            })
-        })
-    }
-
-    // 一次問 currentsong + status，取得「目前正在播放」的 file / elapsed / duration。
-    // 若目前沒有在播（沒有 file），callback 的 file 會是 null。
-    function fetchPlaybackState(callback) {
-        cmdSocket.enqueue(
-            "command_list_ok_begin\ncurrentsong\nstatus\ncommand_list_end",
-            function (lines, status) {
-                if (!status.startsWith("OK")) {
-                    callback(null, 0, 0)
-                    return
-                }
-
-                let file = null
-                let elapsed = 0
-                let duration = 0
-
-                for (const line of lines) {
-                    if (file === null && line.startsWith("file:")) {
-                        file = line.slice("file:".length).trim()
-                    } else if (line.startsWith("elapsed:")) {
-                        elapsed = parseFloat(line.slice("elapsed:".length)) || 0
-                    } else if (line.startsWith("duration:")) {
-                        duration = parseFloat(line.slice("duration:".length)) || 0
-                    }
-                }
-
-                callback(file, elapsed, duration)
-            }
-        )
+    // 解析 "key: value" 形式的回應行,不是此格式則回傳 null
+    function parseField(line) {
+        const sep = line.indexOf(":")
+        if (sep === -1)
+            return null
+        return { key: line.slice(0, sep), value: line.slice(sep + 1).trim() }
     }
 
     // Fisher-Yates 洗牌,回傳新陣列(不改動原陣列)
@@ -262,217 +141,412 @@ Scope {
         return arr
     }
 
-    // 依陣列目前順序,重新指定 id = index(本地播放順序的依據)
+    // 依陣列目前順序重新指定 id = index
     function assignIds(list) {
-        return list.map((s, idx) => Object.assign({}, s, { id: idx }))
+        return list.map((song, index) => Object.assign({}, song, { id: index }))
     }
 
-    // s 鍵:重新洗牌本地播放順序。
-    // 目前正在播放的那首歌不會被中斷,只是重新指定它在新順序中的 id,
-    // 游標(selectedSongId)交由 ensureSelection() 依新的 currentSongId 自動歸位。
-    function reshuffle() {
-        if (root.songList.length === 0)
-        return
+    // ------------------------------------------------------------------
+    // 篩選 / 模糊搜尋
+    // ------------------------------------------------------------------
 
-        const currentFile = root.currentSong ? root.currentSong.file : null
+    // 以空白切開關鍵字,每個關鍵字都必須出現在 title / artist / album 合併文字中
+    function getFilteredList() {
+        const keywords = filterText.toLowerCase().split(/\s+/).filter(k => k.length > 0)
+        if (keywords.length === 0)
+            return songList
 
-        let list = root.shuffleList(root.songList)
-        list = root.assignIds(list)
+        return songList.filter(song => keywords.every(k => song.searchText.includes(k)))
+    }
 
-        if (currentFile) {
-            const newCur = list.find(s => s.file === currentFile)
-            if (newCur)
-            root.currentSongId = newCur.id
-            root.selectedSongId = newCur.id
+    // ==================================================================
+    // MPD socket
+    // ==================================================================
+
+    // 共用的 mpd socket:斷線自動重連、記錄是否已收到第一行 banner、送出一行文字
+    component MpdSocket: Socket {
+        property bool bannerConsumed: false
+
+        connected: true
+        onConnectedChanged: {
+            if (!connected)
+                connected = true
         }
 
-        root.songList = list
-    }
-
-    // 核心切歌函式:不再操作 mpd 既有的 playlist 位置,
-    // 而是直接把 mpd 的 playlist 清空、塞入指定的那一首、播放。
-    // switchingTrack 期間忽略 idle 監聽送來的 "stop" 事件,
-    // 避免 clear -> add 中間的短暫 stop 狀態被誤判成自然播完。
-    function playSongObject(song) {
-        if (!song)
-        return
-
-        sendMpdCommand("setvol 44")
-
-        root.switchingTrack = true
-
-        cmdSocket.enqueue("clear", function (_lines1, _status1) {
-            cmdSocket.enqueue("add " + root.mpdQuote(song.file), function (_lines2, _status2) {
-                cmdSocket.enqueue("play", function (_lines3, _status3) {
-                    root.currentSongId = song.id
-                    root.selectedSongId = song.id
-                    root.switchingTrack = false
-                })
-            })
-        })
-    }
-
-    // H / L(shift)以及「自然播完」共用的換歌邏輯。
-    // direction: -1 = 上一首(H), +1 = 下一首(L) / 自然播完視為 +1。
-    //
-    // 情況一:目前播放的歌「在」目前篩選(搜尋)結果中
-    //         -> 行為跟沒有 filter 時一樣,播放篩選清單中的上一首/下一首。
-    // 情況二:目前播放的歌「不在」目前篩選結果中
-    //         -> 不管方向,一律播放目前游標選中的那首歌。
-    function advanceTrack(direction) {
-        const filtered = root.getFilteredList()
-        if (filtered.length === 0)
-        return
-
-        const curIdx = filtered.findIndex(s => s.id === root.currentSongId)
-
-        if (curIdx !== -1) {
-            const idx = (curIdx + direction + filtered.length) % filtered.length
-            root.playSongObject(filtered[idx])
-        } else {
-            const selected = root.songList.find(s => s.id === root.selectedSongId)
-            root.playSongObject(selected)
+        function sendLine(text) {
+            write(text + "\n")
+            flush()
         }
     }
 
-    // 是否正在跑 mpd database update,U 鍵期間會被擋掉,避免重複觸發
-    property bool updatingDb: false
+    // 指令佇列 socket:所有一次性指令都透過這條連線依序送出。
+    // mpd protocol 一次只能有一個指令在途,所以自行維護 queue,
+    // 上一個指令收到 OK/ACK 後才會送出下一個。
+    MpdSocket {
+        id: commandSocket
+        path: root.mpdSocketPath
 
-    // ------------------------------------------------------------------
-    // 搜尋列右側「通用狀態區」
-    // UpdateDB 提示與刪除確認共用同一塊區域,所以改用通用名稱:
-    //   statusLabel  : 固定顯示的前綴文字(空字串 = 右側不顯示)
-    //   statusTarget : 需要使用者逐字輸入的目標字串(例如 "Yes",可為空)
-    //   statusTyped  : 目標字串已正確輸入的字元數(已輸入的字母會變亮)
-    // ------------------------------------------------------------------
-    property int statusTyped: 0
-    readonly property string statusTarget: root.mode === "confirm" ? root.confirmWord : ""
-    readonly property string statusLabel: {
-        if (root.mode === "confirm")
-        return "Confirm deletion : "
-        if (root.deleting)
-        return "Deleting…"
-        if (root.updatingDb)
-        return "Song Database is updating…"
-        return ""
-    }
+        property var queue: []              // 等待送出的 { command, callback }
+        property var inFlight: null         // 已送出、等待回應的指令
+        property var responseLines: []      // 目前指令已收到的回應行
 
-    // ------------------------------------------------------------------
-    // 刪除歌曲 (d)
-    // ------------------------------------------------------------------
-    readonly property string musicRoot: "/home/niiixkz/Music"
-    readonly property string confirmWord: "Yes"    // 大小寫必須完全一致
-    property bool deleting: false
-    // 刪除時「正在播放的歌也被刪」且當時確實在播放 -> 刪完後要自動播放新選中的歌
-    property bool resumeAfterDelete: false
-
-    // 只接受「專輯資料夾/檔名」這種兩層結構,避免 ".." 之類的路徑跑出 musicRoot
-    function isSafeSongPath(file) {
-        const parts = String(file).split("/")
-        if (parts.length !== 2)
-        return false
-        return parts[0] !== "" && parts[0] !== "." && parts[0] !== ".." && parts[1] !== ""
-    }
-
-    // d:進入刪除確認。搜尋字串為空時不動作(避免誤刪整個音樂庫)。
-    function requestDelete() {
-        if (root.filterText.trim() === "")
-        return
-        if (root.updatingDb || root.deleting)
-        return
-        if (root.getFilteredList().some(s => root.isSafeSongPath(s.file)) === false)
-        return
-
-        root.statusTyped = 0
-        root.mode = "confirm"
-    }
-
-    function cancelDelete() {
-        root.statusTyped = 0
-        root.mode = "normal"
-    }
-
-    // 確認通過後,刪除「目前搜尋結果」中的所有歌曲
-    function executeDelete() {
-        const targets = root.getFilteredList().filter(s => root.isSafeSongPath(s.file))
-
-        root.statusTyped = 0
-        root.mode = "normal"
-
-        if (targets.length === 0)
-        return
-
-        root.deleting = true
-
-        // 若正在播放的歌也要被刪:先停掉 mpd,並暫時擋住 idle 的「自然播完」判斷,
-        // 避免它自動跳去播下一首同樣即將被刪除的歌。
-        root.resumeAfterDelete = false
-        if (targets.some(s => s.id === root.currentSongId)) {
-            root.resumeAfterDelete = root.isPlaying
-            root.switchingTrack = true
-            root.sendMpdCommand("clear")
+        function enqueue(command, callback) {
+            queue.push({ command: command, callback: callback })
+            processQueue()
         }
 
-        deleteProcess.command = ["bash", "-c", root.deleteScript, "_", root.musicRoot]
-        .concat(targets.map(s => s.file))
-        deleteProcess.running = true
+        function processQueue() {
+            if (!bannerConsumed || inFlight !== null || queue.length === 0)
+                return
+
+            inFlight = queue.shift()
+            sendLine(inFlight.command)
+        }
+
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                // 第一行是 mpd 的 banner,例如 "OK MPD 0.23.x"
+                if (!commandSocket.bannerConsumed) {
+                    commandSocket.bannerConsumed = true
+                    root.fetchLibrary()
+                    commandSocket.processQueue()
+                    return
+                }
+
+                if (!root.isResponseEnd(line)) {
+                    commandSocket.responseLines.push(line)
+                    return
+                }
+
+                const finished = commandSocket.inFlight
+                const lines = commandSocket.responseLines
+                commandSocket.inFlight = null
+                commandSocket.responseLines = []
+
+                if (finished && finished.callback)
+                    finished.callback(lines, line)
+                commandSocket.processQueue()
+            }
+        }
     }
 
-    // 刪除完成後(只處理腳本回報「確實刪掉了」的檔案)同步本地清單
-    function finishDelete(deletedFiles) {
-        const gone = {}
-        deletedFiles.forEach(f => { gone[f] = true })
+    // 送出單一指令。callback(lines, status) 可省略
+    function sendMpdCommand(command, callback) {
+        commandSocket.enqueue(command, callback)
+    }
 
-        const oldList = root.songList
-        const n = oldList.length
-        const currentFile = root.currentSong ? root.currentSong.file : null
+    // 以 command list 一次送出多個指令(整串只會收到一個 OK/ACK)
+    function sendMpdCommandList(commands, callback) {
+        sendMpdCommand("command_list_begin\n" + commands.join("\n") + "\ncommand_list_end", callback)
+    }
 
-        // 新游標位置:起點 = currentSongId(可用時),否則 selectedSongId;
-        // 從起點開始 id++(循環)直到找到沒被刪的歌
-        let selectedFile = null
-        let selIdx = oldList.findIndex(s => s.id === root.currentSongId)
-        if (selIdx === -1)
-        selIdx = oldList.findIndex(s => s.id === root.selectedSongId)
-        if (selIdx !== -1) {
-            for (let i = 0; i < n; i++) {
-                const cand = oldList[(selIdx + i) % n]
-                if (!gone[cand.file]) {
-                    selectedFile = cand.file
+    // 狀態輪詢 socket:每 0.5 秒送一次 "status",更新進度條所需的
+    // elapsed / duration / state。不負責判斷歌曲是否播完(交給 idleSocket)。
+    MpdSocket {
+        id: statusSocket
+        path: root.mpdSocketPath
+
+        property bool busy: false           // 已送出 status、尚未收到回應
+
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                if (!statusSocket.bannerConsumed) {
+                    statusSocket.bannerConsumed = true
+                    return
+                }
+
+                if (root.isResponseEnd(line)) {
+                    statusSocket.busy = false
+                    return
+                }
+
+                const field = root.parseField(line)
+                if (!field)
+                    return
+
+                switch (field.key) {
+                case "elapsed":
+                    root.elapsedTime = parseFloat(field.value) || 0
+                    break
+                case "duration":
+                    root.durationTime = parseFloat(field.value) || 0
+                    break
+                case "state":
+                    root.isPlaying = field.value === "play"
                     break
                 }
             }
         }
+    }
 
-        // 先拿掉搜尋,再重新指派 id,讓游標在完整清單上歸位
-        root.filterText = ""
+    Timer {
+        interval: 500
+        running: true
+        repeat: true
+        onTriggered: {
+            if (statusSocket.connected && statusSocket.bannerConsumed && !statusSocket.busy) {
+                statusSocket.busy = true
+                statusSocket.sendLine("status")
+            }
+        }
+    }
 
-        let list = oldList.filter(s => !gone[s.file])
-        list = root.assignIds(list)
+    // idle 監聽 socket:只在乎「歌曲何時自然播完」。
+    // 送 "idle player" 阻塞等待播放狀態變化,有回應就查 "status",
+    // 若 state 變成 stop 且不是自己在切歌(switchingTrack),
+    // 代表自然播完,交給 advanceTrack(1) 決定接下來播什麼。
+    MpdSocket {
+        id: idleSocket
+        path: root.mpdSocketPath
 
-        let newCurrentId = -1
-        if (currentFile && !gone[currentFile]) {
-            const c = list.find(s => s.file === currentFile)
-            if (c)
-            newCurrentId = c.id
+        property string awaiting: "idle"    // 正在等待哪個指令的回應: "idle" | "status"
+
+        function sendIdle() {
+            awaiting = "idle"
+            sendLine("idle player")
         }
 
-        root.currentSongId = newCurrentId
-        root.songList = list
+        parser: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                if (!idleSocket.bannerConsumed) {
+                    idleSocket.bannerConsumed = true
+                    idleSocket.sendIdle()
+                    return
+                }
 
-        const newSelected = selectedFile ? list.find(s => s.file === selectedFile) : null
-        root.selectedSongId = newSelected ? newSelected.id : -1
+                if (idleSocket.awaiting === "idle") {
+                    // idle 因 player 有變化而返回 -> 查詢目前狀態
+                    // (其餘如 "changed: player" 直接忽略)
+                    if (root.isResponseEnd(line)) {
+                        idleSocket.awaiting = "status"
+                        idleSocket.sendLine("status")
+                    }
+                    return
+                }
 
-        root.switchingTrack = false
-        root.deleting = false
+                if (root.isResponseEnd(line)) {
+                    idleSocket.sendIdle()
+                    return
+                }
 
-        // 通知 mpd 資料庫檔案已消失(不呼叫 fetchLibrary,所以不會重新洗牌)
-        root.sendMpdCommand("update")
-
-        // 播放被中斷(正在播的歌被刪)-> 開始播放新選中的那首
-        if (root.resumeAfterDelete && newSelected)
-        root.playSongObject(newSelected)
-        root.resumeAfterDelete = false
+                const field = root.parseField(line)
+                if (field && field.key === "state" && field.value === "stop" && !root.switchingTrack)
+                    root.advanceTrack(1)
+            }
+        }
     }
+
+    // ==================================================================
+    // 歌曲庫載入
+    // ==================================================================
+
+    // 解析 listallinfo 的回應行,回傳歌曲陣列(尚未洗牌、未指定 id)
+    function parseLibrary(lines) {
+        const songs = []
+        let song = null
+
+        for (const line of lines) {
+            const sep = line.indexOf(": ")
+            if (sep === -1)
+                continue
+
+            const key = line.slice(0, sep)
+            const value = line.slice(sep + 2)
+
+            if (key === "file") {
+                song = { title: "", artist: "", albumartist: "", album: "", file: value }
+                songs.push(song)
+            } else if (song && tagFields[key]) {
+                song[tagFields[key]] = value
+            }
+        }
+
+        // 預先組好搜尋用文字,避免每次篩選都重新串接
+        songs.forEach(s => {
+            s.searchText = (s.title + " " + s.artist + " " + s.album).toLowerCase()
+        })
+        return songs
+    }
+
+    // 查詢 mpd 目前實際播放的 file / elapsed / duration。
+    // 若沒有在播放,callback 的 file 為 null。
+    function fetchPlaybackState(callback) {
+        sendMpdCommandList(["currentsong", "status"], (lines, status) => {
+            if (!isOk(status)) {
+                callback(null, 0, 0)
+                return
+            }
+
+            let file = null
+            let elapsed = 0
+            let duration = 0
+
+            for (const line of lines) {
+                const field = parseField(line)
+                if (!field)
+                    continue
+
+                if (field.key === "file" && file === null)
+                    file = field.value
+                else if (field.key === "elapsed")
+                    elapsed = parseFloat(field.value) || 0
+                else if (field.key === "duration")
+                    duration = parseFloat(field.value) || 0
+            }
+
+            callback(file, elapsed, duration)
+        })
+    }
+
+    // 取得完整歌曲庫:洗牌並指定本地 id,
+    // 若 mpd 正在播放其中一首就沿用其進度,否則停在第 0 首。
+    function fetchLibrary() {
+        sendMpdCommand("listallinfo", (lines, status) => {
+            if (!isOk(status)) {
+                console.warn("listallinfo failed:", status)
+                return
+            }
+
+            const songs = assignIds(shuffleList(parseLibrary(lines)))
+            songList = songs
+
+            if (songs.length === 0)
+                return
+
+            fetchPlaybackState((file, elapsed, duration) => {
+                const playing = file ? songs.find(s => s.file === file) : null
+
+                if (playing) {
+                    currentSongId = playing.id
+                    selectedSongId = playing.id
+                    elapsedTime = elapsed
+                    durationTime = duration
+                } else {
+                    currentSongId = 0
+                    selectedSongId = 0
+                }
+            })
+        })
+    }
+
+    // 以新的歌曲順序取代 songList(洗牌 / 刪除後共用)。
+    // id 會依新順序重新指定,所以以 file 為準,把正在播放與游標選中的歌對回新 id;
+    // 對不到(file 為 null 或已不在新清單中)則為 -1,之後由 ensureSelection() 補上游標。
+    // 先更新兩個 id 再換清單,避免中間出現指向錯誤歌曲的狀態。
+    function applySongList(list, playingFile, selectedFile) {
+        const songs = assignIds(list)
+        const idOfFile = file => {
+            const song = file ? songs.find(s => s.file === file) : null
+            return song ? song.id : -1
+        }
+
+        currentSongId = idOfFile(playingFile)
+        selectedSongId = idOfFile(selectedFile)
+        songList = songs
+    }
+
+    // s 鍵:重新洗牌本地播放順序,不中斷目前播放,游標回到正在播放的歌
+    function reshuffle() {
+        if (songList.length === 0)
+            return
+
+        const playingFile = currentSong ? currentSong.file : null
+        applySongList(shuffleList(songList), playingFile, playingFile)
+    }
+
+    // ==================================================================
+    // 播放控制
+    // ==================================================================
+
+    // 清空 mpd playlist、加入指定歌曲並播放
+    function playSong(song) {
+        if (!song)
+            return
+
+        switchingTrack = true
+        sendMpdCommandList(
+            ["setvol " + defaultVolume, "clear", "add " + mpdQuote(song.file), "play"],
+            () => {
+                currentSongId = song.id
+                selectedSongId = song.id
+                switchingTrack = false
+            }
+        )
+    }
+
+    // Enter:播放游標選中的歌曲
+    function playSelected() {
+        playSong(songById(selectedSongId))
+    }
+
+    // H / L 以及「自然播完」共用的換歌邏輯。
+    // direction: -1 = 上一首, +1 = 下一首
+    //   - 正在播放的歌在篩選結果中 -> 播放篩選結果中的上一首 / 下一首
+    //   - 不在篩選結果中           -> 不分方向,播放游標選中的那首
+    function advanceTrack(direction) {
+        const filtered = getFilteredList()
+        if (filtered.length === 0)
+            return
+
+        const currentIndex = filtered.findIndex(s => s.id === currentSongId)
+        if (currentIndex === -1) {
+            playSelected()
+            return
+        }
+
+        playSong(filtered[wrapIndex(currentIndex + direction, filtered.length)])
+    }
+
+    // ==================================================================
+    // 資料庫更新 (u)
+    // ==================================================================
+
+    function startLibraryUpdate() {
+        if (updatingDb)
+            return
+
+        updatingDb = true
+        sendMpdCommand("update", (lines, status) => {
+            if (!isOk(status)) {
+                console.warn("update failed:", status)
+                updatingDb = false
+                return
+            }
+            pollUpdateStatus()
+        })
+    }
+
+    // 反覆查詢 status,直到 updating_db 消失,再重新載入歌曲庫
+    function pollUpdateStatus() {
+        sendMpdCommand("status", (lines, status) => {
+            if (!isOk(status)) {
+                console.warn("status (update poll) failed:", status)
+                updatingDb = false
+                return
+            }
+
+            if (lines.some(l => l.startsWith("updating_db:"))) {
+                updatePollTimer.start()
+            } else {
+                updatingDb = false
+                fetchLibrary()
+            }
+        })
+    }
+
+    Timer {
+        id: updatePollTimer
+        interval: 300
+        repeat: false
+        onTriggered: root.pollUpdateStatus()
+    }
+
+    // ==================================================================
+    // 刪除歌曲 (d)
+    // ==================================================================
 
     // 檔案與專輯資料夾都有 +i,所以流程是:
     //   1. 先解除涉及的專輯資料夾的 +i(否則資料夾內不能刪檔)
@@ -507,411 +581,196 @@ Scope {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const files = this.text.split("\n").filter(l => l !== "")
-                root.finishDelete(files)
+                root.finishDelete(this.text.split("\n").filter(l => l !== ""))
             }
         }
     }
 
-    // u:更新歌曲資料庫
-    function startLibraryUpdate() {
-        if (root.updatingDb)
-        return
-
-        root.updatingDb = true
-
-        cmdSocket.enqueue("update", function (lines, status) {
-            if (!status.startsWith("OK")) {
-                console.warn("update failed:", status)
-                root.updatingDb = false
-                return
-            }
-            root.pollUpdateStatus()
-        })
+    // 只接受「專輯資料夾/檔名」兩層結構,避免 ".." 之類的路徑跑出 musicRoot
+    function isSafeSongPath(file) {
+        const parts = String(file).split("/")
+        return parts.length === 2
+            && parts[0] !== "" && parts[0] !== "." && parts[0] !== ".."
+            && parts[1] !== ""
     }
 
-    // 反覆查 status,看 updating_db 是否還在,直到 job 結束為止
-    function pollUpdateStatus() {
-        cmdSocket.enqueue("status", function (lines, status) {
-            if (!status.startsWith("OK")) {
-                console.warn("status (update poll) failed:", status)
-                root.updatingDb = false
-                return
-            }
+    // d:進入刪除確認。搜尋字串為空時不動作(避免誤刪整個音樂庫)
+    function requestDelete() {
+        if (filterText.trim() === "" || updatingDb || deleting)
+            return
+        if (!getFilteredList().some(s => isSafeSongPath(s.file)))
+            return
 
-            const stillUpdating = lines.some(l => l.startsWith("updating_db:"))
-
-            if (stillUpdating) {
-                updatePollTimer.start()
-            } else {
-                root.updatingDb = false
-                root.fetchLibrary()
-            }
-        })
+        statusTyped = 0
+        mode = "confirm"
     }
 
-    // ==================================================================
-    // 狀態輪詢 socket:每 0.5 秒送一次 "status",解析 elapsed / duration /
-    // state,取代原本 nc + bash case 組成的 mpdStatusScript。
-    // 這條連線只負責「進度條」用的資料,不負責判斷歌曲自然播完
-    // (那個責任交給下面的 idleSocket)。
-    // ==================================================================
-    Socket {
-        id: statusSocket
-        path: root.mpdSocketPath
-        connected: true
+    function cancelDelete() {
+        statusTyped = 0
+        mode = "normal"
+    }
 
-        property bool bannerConsumed: false
-        property bool busy: false
+    // 確認通過後,刪除「目前搜尋結果」中的所有歌曲
+    function executeDelete() {
+        const targets = getFilteredList().filter(s => isSafeSongPath(s.file))
 
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (!statusSocket.bannerConsumed) {
-                    statusSocket.bannerConsumed = true
-                    return
-                }
+        statusTyped = 0
+        mode = "normal"
 
-                if (line.startsWith("elapsed:")) {
-                    root.elapsedTime = parseFloat(line.slice("elapsed:".length)) || 0
-                } else if (line.startsWith("duration:")) {
-                    root.durationTime = parseFloat(line.slice("duration:".length)) || 0
-                } else if (line.startsWith("state:")) {
-                    root.isPlaying = line.slice("state:".length).trim() === "play"
-                } else if (line.startsWith("OK") || line.startsWith("ACK")) {
-                    statusSocket.busy = false
-                }
-            }
+        if (targets.length === 0)
+            return
+
+        deleting = true
+
+        // 正在播放的歌也要被刪:先清空 mpd,並暫時擋住 idle 的「自然播完」判斷,
+        // 避免它自動跳去播下一首同樣即將被刪除的歌
+        resumeAfterDelete = false
+        if (targets.some(s => s.id === currentSongId)) {
+            resumeAfterDelete = isPlaying
+            switchingTrack = true
+            sendMpdCommand("clear")
         }
 
-        onConnectedChanged: {
-            if (!statusSocket.connected) {
-                statusSocket.connected = true
-            }
-        }
+        deleteProcess.command = ["bash", "-c", deleteScript, "_", musicRoot].concat(targets.map(s => s.file))
+        deleteProcess.running = true
     }
 
-    Timer {
-        interval: 500
-        running: true
-        repeat: true
-        onTriggered: {
-            if (statusSocket.connected && statusSocket.bannerConsumed && !statusSocket.busy) {
-                statusSocket.busy = true
-                statusSocket.write("status\n")
-                statusSocket.flush()
-            }
+    // 刪除後游標該停在哪首:從正在播放(不可用則游標)的歌開始往後循環,
+    // 找到第一首沒被刪除的歌;全部都被刪光則回傳 null
+    function findNextSurvivor(deleted) {
+        let start = songList.findIndex(s => s.id === currentSongId)
+        if (start === -1)
+            start = songList.findIndex(s => s.id === selectedSongId)
+        if (start === -1)
+            return null
+
+        for (let i = 0; i < songList.length; i++) {
+            const song = songList[(start + i) % songList.length]
+            if (!deleted.has(song.file))
+                return song
         }
+        return null
     }
 
-    Timer {
-        id: updatePollTimer
-        interval: 300
-        repeat: false
-        onTriggered: root.pollUpdateStatus()
+    // 刪除完成後,依腳本回報「確實刪掉了」的檔案同步本地清單
+    function finishDelete(deletedFiles) {
+        const deleted = new Set(deletedFiles)
+        const survivors = songList.filter(s => !deleted.has(s.file))
+        const playingFile = currentSong ? currentSong.file : null    // 若已被刪,applySongList 會對應成 -1
+        const next = findNextSurvivor(deleted)
+
+        // 先清掉搜尋,讓游標在完整清單上歸位
+        filterText = ""
+        applySongList(survivors, playingFile, next ? next.file : null)
+
+        switchingTrack = false
+        deleting = false
+
+        // 通知 mpd 檔案已消失(不呼叫 fetchLibrary,所以不會重新洗牌)
+        sendMpdCommand("update")
+
+        // 正在播的歌被刪 -> 開始播放新游標所在的那首
+        if (resumeAfterDelete)
+            playSelected()
+        resumeAfterDelete = false
     }
 
     // ==================================================================
-    // idle 監聽 socket:只在乎「歌曲何時自然播完」。
-    // 送 "idle player" 阻塞等待播放狀態變化,一有回應就查 "status" 拿目前
-    // state,若變成 stop 且不是我們自己在切歌(switchingTrack),
-    // 代表歌曲自然播完,交給 advanceTrack(1) 決定接下來播什麼。
-    // 取代原本 nc + FIFO 組成的 mpdIdleScript。
+    // 頻譜視覺化
     // ==================================================================
-    Socket {
-        id: idleSocket
-        path: root.mpdSocketPath
-        connected: true
-
-        property bool bannerConsumed: false
-        property string awaiting: "idle" // "idle" | "status"
-
-        function sendIdle() {
-            idleSocket.awaiting = "idle"
-            idleSocket.write("idle player\n")
-            idleSocket.flush()
-        }
-
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: function(line) {
-                if (!idleSocket.bannerConsumed) {
-                    idleSocket.bannerConsumed = true
-                    idleSocket.sendIdle()
-                    return
-                }
-
-                if (idleSocket.awaiting === "idle") {
-                    if (line.startsWith("OK") || line.startsWith("ACK")) {
-                        // idle 因為 player 有變化(或被 noidle)而返回 -> 查詢目前狀態
-                        idleSocket.awaiting = "status"
-                        idleSocket.write("status\n")
-                        idleSocket.flush()
-                    }
-                    // 其餘像 "changed: player" 直接忽略
-                } else {
-                    if (line.startsWith("state:")) {
-                        const state = line.slice("state:".length).trim()
-                        if (state === "stop" && !root.switchingTrack) {
-                            root.advanceTrack(1)
-                        }
-                    } else if (line.startsWith("OK") || line.startsWith("ACK")) {
-                        idleSocket.sendIdle()
-                    }
-                }
-            }
-        }
-
-        onConnectedChanged: {
-            if (!idleSocket.connected) {
-                idleSocket.connected = true
-            }
-        }
-    }
-
-    property var audioData: []
 
     Process {
         id: nixVisualizerProcess
         command: [
             "nix-visualizer",
-            "--sink", "nix-visualizer_sink.monitor",       // 音訊來源 sink
-            "--num-bars", "130",                 // 輸出 130 條 bar
-            "--bar-max", "281",                  // 每條 bar 的數值上限
-            "--fft-size", "8192",                // FFT 視窗變大,頻率解析度更高、延遲也更高
-            "--fft-pad", "1",                    // 不做零填補
-            "--min-freq", "20",                  // 分頻下界 20Hz
-            "--max-freq", "20000",               // 分頻上界 20kHz
-            "--freq-warp", "1.2",                // 輕微把更多 bar 分給高頻
-            "--spatial-smooth-max-radius", "0",  // 不做跨 bar 空間平滑,保留細節
-            "--peak-mix", "0.5",                 // 高頻聚合時 RMS 與峰值各半
-            "--dynamic-range-db", "36",          // 動態範圍
-            "--noise-gate-rise", "1",            // 背景噪音水位追蹤上升得慢
-            "--noise-gate-margin", "1.2",        // 噪聲門門檻寬鬆
-            "--attack", "1",                     // 上升瞬間到位,沒有延遲
-            "--release", "0.75",                 // 基礎重力大小
-            "--release-high-boost", "0.25",      // 高頻重力再加重
-            "--gravity-db-scale", "32",          // 音量越大,下墜重力越強
-            "--band-independence", "0.5",        // 頻段獨立程度
-            "--fps", "120"                       // 幀數
+            "--sink", "nix-visualizer_sink.monitor",    // 音訊來源 sink
+            "--num-bars", "130",                        // 輸出 130 條 bar
+            "--bar-max", "281",                         // 每條 bar 的數值上限
+            "--fft-size", "8192",                       // FFT 視窗變大,頻率解析度更高、延遲也更高
+            "--fft-pad", "1",                           // 不做零填補
+            "--min-freq", "20",                         // 分頻下界 20Hz
+            "--max-freq", "20000",                      // 分頻上界 20kHz
+            "--freq-warp", "1.2",                       // 輕微把更多 bar 分給高頻
+            "--spatial-smooth-max-radius", "0",         // 不做跨 bar 空間平滑,保留細節
+            "--peak-mix", "0.5",                        // 高頻聚合時 RMS 與峰值各半
+            "--dynamic-range-db", "36",                 // 動態範圍
+            "--noise-gate-rise", "1",                   // 背景噪音水位追蹤上升得慢
+            "--noise-gate-margin", "1.2",               // 噪聲門門檻寬鬆
+            "--attack", "1",                            // 上升瞬間到位,沒有延遲
+            "--release", "0.75",                        // 基礎重力大小
+            "--release-high-boost", "0.25",             // 高頻重力再加重
+            "--gravity-db-scale", "32",                 // 音量越大,下墜重力越強
+            "--band-independence", "0.5",               // 頻段獨立程度
+            "--fps", "120"                              // 幀數
         ]
         running: true
 
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: data => {
-                audioData = data.trim().split(",").map(Number)
+                root.audioData = data.trim().split(",").map(Number)
             }
         }
     }
 
-    // ------------------------------------------------------------------
-    // 游標(選取)邏輯
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // 游標(選取)與顯示視窗
+    // ==================================================================
 
-    // 確保 selectedSongId 在目前篩選結果中仍然有效,
-    // 若無效則優先退回「目前播放中」的歌,否則退回第一首
+    // 確保 selectedSongId 在目前篩選結果中仍然有效;
+    // 無效時優先退回正在播放的歌,否則退回第一首
     function ensureSelection() {
         const filtered = getFilteredList()
 
         if (filtered.length === 0) {
             selectedSongId = -1
-            computeWindow()
-            return
-        }
-
-        const stillValid = filtered.some(s => s.id === selectedSongId)
-        if (!stillValid) {
-            const curIdx = filtered.findIndex(s => s.id === currentSongId)
-            selectedSongId = curIdx !== -1 ? filtered[curIdx].id : filtered[0].id
+        } else if (!filtered.some(s => s.id === selectedSongId)) {
+            const playing = filtered.find(s => s.id === currentSongId)
+            selectedSongId = (playing || filtered[0]).id
         }
 
         computeWindow()
     }
 
+    // 游標在篩選結果中循環移動 delta 格
     function moveSelection(delta) {
         const filtered = getFilteredList()
         if (filtered.length === 0)
-        return
+            return
 
-        let idx = filtered.findIndex(s => s.id === selectedSongId)
-
-        idx = (idx + delta + filtered.length) % filtered.length
-        selectedSongId = filtered[idx].id
+        const selectedIndex = filtered.findIndex(s => s.id === selectedSongId)
+        selectedSongId = filtered[wrapIndex(selectedIndex + delta, filtered.length)].id
     }
 
-    // Enter:播放目前選中的那首歌
-    function playSelected() {
-        if (selectedSongId === -1)
-        return
-
-        const song = songList.find(s => s.id === selectedSongId)
-        playSongObject(song)
-    }
-
-    // 以 selectedSongId 為中心,往前後各取一半組成「僅包含實際歌曲數」的視窗
-    // 不再頭尾相接填滿整個 windowSize;若歌曲數不足 windowSize,
-    // 超出範圍的格子維持 null(空白),只有中間 visibleCount 格會顯示歌曲。
-    // 當歌曲數 >= windowSize 時,行為與原本相同(整個視窗填滿)。
+    // 以游標為中心,在固定 windowSize 個格子中填入前後的歌曲。
+    // 歌曲數不足 windowSize 時只填中間的 visibleCount 格(不重複填滿),其餘為 null;
+    // 歌曲數 >= windowSize 時整個視窗填滿並循環銜接。
     function computeWindow() {
         const filtered = getFilteredList()
-        const n = filtered.length
+        const total = filtered.length
+        const slots = new Array(windowSize).fill(null)
 
-        if (n === 0) {
-            windowList = new Array(windowSize).fill(null)
-            return
+        if (total > 0) {
+            const anchor = Math.max(0, filtered.findIndex(s => s.id === selectedSongId))
+            const visibleCount = Math.min(total, windowSize)
+            const firstSlot = centerIndex - Math.floor((visibleCount - 1) / 2)
+
+            for (let i = 0; i < visibleCount; i++) {
+                const slot = firstSlot + i
+                slots[slot] = filtered[wrapIndex(anchor + slot - centerIndex, total)]
+            }
         }
 
-        let anchor = filtered.findIndex(s => s.id === selectedSongId)
-        if (anchor === -1)
-        anchor = 0
-
-        const win = new Array(windowSize).fill(null)
-
-        // 實際要顯示的格數,不超過清單長度,避免資料不足時重複填滿
-        const visibleCount = Math.min(n, windowSize)
-        // 讓 visibleCount 格對稱地置中在 centerIndex 上
-        const half = Math.floor((visibleCount - 1) / 2)
-        const start = centerIndex - half
-
-        for (let i = 0; i < visibleCount; i++) {
-            const pos = start + i
-            const offset = pos - centerIndex
-            // 只在這 visibleCount 格範圍內循環,而不是整個 windowSize,
-            // 所以歌曲數少時不會被拉伸重複填滿。
-            const idx = ((anchor + offset) % n + n) % n
-            win[pos] = filtered[idx]
-        }
-
-        windowList = win
+        windowList = slots
     }
 
     onSongListChanged: ensureSelection()
     onFilterTextChanged: ensureSelection()
     onSelectedSongIdChanged: computeWindow()
 
-    // ------------------------------------------------------------------
-    // Keyboard Dispatcher
-    // ------------------------------------------------------------------
-
-    function handleKey(event) {
-        if (root.mode === "search") {
-            handleSearchKey(event)
-        } else if (root.mode === "confirm") {
-            handleConfirmKey(event)
-        } else {
-            handleNormalKey(event)
-        }
-        event.accepted = true
-    }
-
-    // ---- NORMAL MODE ----
-    function handleNormalKey(event) {
-        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
-
-        switch (event.key) {
-            case Qt.Key_H:
-            if (shift) {
-                // H:上一首歌(依 advanceTrack 的 filter 規則)
-                advanceTrack(-1)
-            } else {
-                // h:歌曲時間向前(倒退) 5 秒
-                sendMpdCommand("seekcur -5")
-            }
-            break
-
-            case Qt.Key_L:
-            if (shift) {
-                // L:下一首歌(依 advanceTrack 的 filter 規則)
-                advanceTrack(1)
-            } else {
-                // l:歌曲時間向後(快轉) 5 秒
-                sendMpdCommand("seekcur +5")
-            }
-            break
-
-            case Qt.Key_J:
-            if (shift) {
-                // J:播放清單游標向下翻頁
-                moveSelection(windowSize)
-            } else {
-                // j:播放清單游標向下一格
-                moveSelection(1)
-            }
-            break
-
-            case Qt.Key_K:
-            if (shift) {
-                // K:播放清單游標向上翻頁
-                moveSelection(-windowSize)
-            } else {
-                // k:播放清單游標向上一格
-                moveSelection(-1)
-            }
-            break
-
-            case Qt.Key_Return:
-            case Qt.Key_Enter:
-            // Enter:播放目前選中的那首歌
-            playSelected()
-            break
-
-            case Qt.Key_S:
-            // s:重新洗牌本地播放順序(不中斷目前播放)
-            reshuffle()
-            break
-
-            case Qt.Key_C:
-            // c:跳回目前正在播放的歌曲(置中)
-            if (root.currentSongId !== -1) {
-                root.selectedSongId = root.currentSongId
-            }
-            break
-
-            case Qt.Key_P:
-            // p:播放/暫停切換(依目前 statusSocket 輪詢到的 isPlaying 狀態決定要送 pause 0 還是 pause 1)
-            sendMpdCommand(root.isPlaying ? "pause 1" : "setvol 44\npause 0")
-            break
-
-            case Qt.Key_U:
-            // u:更新歌曲資料庫
-            startLibraryUpdate()
-            break
-
-            case Qt.Key_D:
-            // d:刪除目前搜尋結果的所有歌曲(需搜尋字串非空,並輸入 Yes 確認)
-            if (!shift)
-                requestDelete()
-            break
-
-            case Qt.Key_T:
-            // t:複製選中歌曲的歌名
-            if (!shift)
-                copySelectedField("title")
-            break
-
-            case Qt.Key_A:
-            if (shift) {
-                // A:複製選中歌曲的專輯
-                copySelectedField("album")
-            } else {
-                // a:複製選中歌曲的演出者(作曲家)名
-                copySelectedField("artist")
-            }
-            break
-
-            case Qt.Key_Slash:
-            // /:進入 SEARCH MODE
-            root.mode = "search"
-            break
-
-            case Qt.Key_Escape:
-            // esc:清空搜尋字串(停留在 NORMAL MODE)
-            root.filterText = ""
-            root.selectedSongId = root.currentSongId
-            break
-        }
-    }
+    // ==================================================================
+    // 剪貼簿
+    // ==================================================================
 
     Process {
         id: pasteProcess
@@ -926,55 +785,135 @@ Scope {
 
     Process {
         id: copyProcess
-        command: ["wl-copy", "--", ""]
     }
 
     function copyToClipboard(text) {
-        if (!text || text.length === 0)
+        if (!text)
             return
 
         copyProcess.command = ["wl-copy", "--", text]
         copyProcess.running = true
     }
 
-    // 複製「目前游標選中」歌曲的指定欄位
-    // field: "title" | "artist" | "album"
+    // 複製游標選中歌曲的指定欄位,field: "title" | "artist" | "album"
     function copySelectedField(field) {
-        const song = root.songList.find(s => s.id === root.selectedSongId)
+        const song = songById(selectedSongId)
         if (!song)
             return
 
         let value = song[field]
 
         // 沒有 Artist tag 時,退而求其次用 AlbumArtist
-        if (field === "artist" && (!value || value.length === 0))
+        if (field === "artist" && !value)
             value = song.albumartist
 
-        root.copyToClipboard(value)
+        copyToClipboard(value)
     }
 
-    // ---- CONFIRM MODE ----
-    // 必須依序輸入 confirmWord("Yes",大小寫須一致),中途輸入錯誤就取消刪除。
-    // 單純按下 Shift / Ctrl 等修飾鍵不算輸入,直接忽略(否則打大寫 Y 時會被 Shift 取消)。
-    function handleConfirmKey(event) {
-        const modifierKeys = [
-            Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_AltGr,
-            Qt.Key_Meta, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_CapsLock
-        ]
-        if (modifierKeys.indexOf(event.key) !== -1)
-        return
+    // ==================================================================
+    // 鍵盤分派
+    // ==================================================================
 
-        if (root.statusTyped >= root.confirmWord.length && (event.key === Qt.Key_Enter || event.key === Qt.Key_Return))
-        root.executeDelete()
+    function handleKey(event) {
+        if (mode === "search")
+            handleSearchKey(event)
+        else if (mode === "confirm")
+            handleConfirmKey(event)
+        else
+            handleNormalKey(event)
 
-        const expected = root.confirmWord[root.statusTyped]
+        event.accepted = true
+    }
 
-        if (event.text !== expected) {
-            root.cancelDelete()
-            return
+    // ---- NORMAL MODE ----
+    function handleNormalKey(event) {
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
+
+        switch (event.key) {
+        case Qt.Key_H:
+            // h:倒退 5 秒 / H:上一首
+            if (shift)
+                advanceTrack(-1)
+            else
+                sendMpdCommand("seekcur -5")
+            break
+
+        case Qt.Key_L:
+            // l:快轉 5 秒 / L:下一首
+            if (shift)
+                advanceTrack(1)
+            else
+                sendMpdCommand("seekcur +5")
+            break
+
+        case Qt.Key_J:
+            // j:游標下移一格 / J:下翻一頁
+            moveSelection(shift ? windowSize : 1)
+            break
+
+        case Qt.Key_K:
+            // k:游標上移一格 / K:上翻一頁
+            moveSelection(shift ? -windowSize : -1)
+            break
+
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+            // Enter:播放游標選中的歌曲
+            playSelected()
+            break
+
+        case Qt.Key_S:
+            // s:重新洗牌(不中斷目前播放)
+            reshuffle()
+            break
+
+        case Qt.Key_C:
+            // c:游標跳回正在播放的歌曲
+            if (currentSongId !== -1)
+                selectedSongId = currentSongId
+            break
+
+        case Qt.Key_P:
+            // p:播放 / 暫停切換
+            if (isPlaying)
+                sendMpdCommand("pause 1")
+            else
+                sendMpdCommandList(["setvol " + defaultVolume, "pause 0"])
+            break
+
+        case Qt.Key_U:
+            // u:更新歌曲資料庫
+            startLibraryUpdate()
+            break
+
+        case Qt.Key_D:
+            // d:刪除目前搜尋結果的所有歌曲(需搜尋字串非空,並輸入確認字串)
+            if (!shift)
+                requestDelete()
+            break
+
+        case Qt.Key_T:
+            // t:複製選中歌曲的歌名
+            if (!shift)
+                copySelectedField("title")
+            break
+
+        case Qt.Key_A:
+            // a:複製選中歌曲的演出者 / A:複製選中歌曲的專輯
+            copySelectedField(shift ? "album" : "artist")
+            break
+
+        case Qt.Key_Slash:
+            // /:進入 SEARCH MODE
+            mode = "search"
+            break
+
+        case Qt.Key_Escape:
+            // esc:清空搜尋字串,游標回到正在播放的歌曲
+            filterText = ""
+            selectedSongId = currentSongId
+            break
         }
-
-        root.statusTyped++
     }
 
     // ---- SEARCH MODE ----
@@ -985,29 +924,50 @@ Scope {
         }
 
         switch (event.key) {
-            case Qt.Key_Escape:
+        case Qt.Key_Escape:
             // esc:清空搜尋字串並回到 NORMAL MODE
-            root.filterText = ""
-            root.mode = "normal"
+            filterText = ""
+            mode = "normal"
             break
 
-            case Qt.Key_Return:
-            case Qt.Key_Enter:
-            // enter:固定目前搜尋字串並回到 NORMAL MODE
-            root.mode = "normal"
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+            // enter:保留搜尋字串並回到 NORMAL MODE
+            mode = "normal"
             break
 
-            case Qt.Key_Backspace:
-            root.filterText = root.filterText.slice(0, -1)
+        case Qt.Key_Backspace:
+            filterText = filterText.slice(0, -1)
             break
 
-            default:
-            // 每按一個可見字元就即時 filter 一次
-            if (event.text && event.text.length > 0 && event.text.charCodeAt(0) >= 0x20) {
-                root.filterText += event.text
-            }
+        default:
+            // 可見字元即時加入搜尋字串
+            if (event.text && event.text.charCodeAt(0) >= 0x20)
+                filterText += event.text
             break
         }
+    }
+
+    // ---- CONFIRM MODE ----
+    // 必須依序輸入 confirmWord,中途輸入錯誤就取消刪除;
+    // 全部輸入完成後按 Enter 才會執行刪除。
+    // 單純按下修飾鍵不算輸入(否則打大寫 Y 時會被 Shift 取消)。
+    function handleConfirmKey(event) {
+        if (modifierKeys.indexOf(event.key) !== -1)
+            return
+
+        const isEnter = event.key === Qt.Key_Enter || event.key === Qt.Key_Return
+        if (isEnter && statusTyped >= confirmWord.length) {
+            executeDelete()
+            return
+        }
+
+        if (event.text !== confirmWord[statusTyped]) {
+            cancelDelete()
+            return
+        }
+
+        statusTyped++
     }
 
     Variants {
