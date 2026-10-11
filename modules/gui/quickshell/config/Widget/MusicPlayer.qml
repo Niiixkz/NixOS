@@ -1013,13 +1013,6 @@ Scope {
 
             Rectangle {
                 id: playlist
-
-                x: 20
-                y: 20
-
-                width: 1311
-                height: 890
-
                 radius: 20
 
                 color: "transparent"
@@ -1169,13 +1162,6 @@ Scope {
             }
             ClippingRectangle {
                 id: cover
-
-                x: 1342
-                y: 22
-
-                width: 556
-                height: 556
-
                 radius: 20
 
                 color: "transparent"
@@ -1203,13 +1189,6 @@ Scope {
             }
             Rectangle {
                 id: nixVisualizer
-
-                x: 1340
-                y: 590
-
-                width: 560
-                height: 321
-
                 radius: 20
 
                 color: "transparent"
@@ -1247,11 +1226,8 @@ Scope {
             }
             Rectangle {
                 id: playback
-                x: 20
-                y: 930
-                width: 1880
-                height: 141
                 radius: 20
+
                 color: "transparent"
                 visible: true
 
@@ -1268,11 +1244,11 @@ Scope {
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 15
+                    anchors.margins: 20
                     anchors.leftMargin: 20
                     anchors.rightMargin: 20
 
-                    spacing: 4
+                    spacing: 8
 
                     // 第一行: Title (跑馬燈)
                     Item {
@@ -1434,18 +1410,36 @@ Scope {
                     root.handleKey(event)
                 }
             }
-
-            function callback(str) {
+            function callback(str, rects) {
                 panelVariants.instances.forEach(p => {
                     const active = p.screenName === screenName && str !== "";
                     p.visible = active;
 
                     if (!active) return;
 
-                    p.playlist.opacity = str.includes("playlist");
-                    p.cover.opacity = str.includes("cover");
-                    p.nixVisualizer.opacity = str.includes("nixVisualizer");
-                    p.playback.opacity = str.includes("playback");
+                    const configs = {
+                        playlist: 0,
+                        cover: 2,
+                        nixVisualizer: 0,
+                        playback: 0
+                    };
+
+                    Object.entries(configs).forEach(([key, offset]) => {
+                        const rect = rects?.[key];
+                        if (!rect) return;
+
+                        const [x, y, w, h] = rect;
+                        Object.assign(p[key], {
+                            x: x + offset,
+                            y: y + offset,
+                            width: w - offset * 2,
+                            height: h - offset * 2
+                        });
+                    });
+
+                    Object.keys(configs).forEach(key => {
+                        p[key].opacity = str.includes(key);
+                    });
                 });
             }
         }
@@ -1474,10 +1468,10 @@ Scope {
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "musicPlayer",
                         "regions": {
-                            "playlist": [0, 1311, 890, 0],
+                            "playlist": [0, 1310, 890, 0],
                             "cover": [2, 560, 560, 0],
-                            "playback": [5, 1880, 141, 0],
-                            "nixVisualizer": [3, 560, 321, 209.5]
+                            "playback": [5, 1880, 140, 0],
+                            "nixVisualizer": [3, 560, 320, 210]
                         },
                         "callback": targetPanel.callback
                 })

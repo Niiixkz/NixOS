@@ -52,9 +52,12 @@ Singleton {
         recompute();
     }
 
-    // 重新計算可見性，把跟上次相比有變化的 owner 分成 hide / show 兩批呼叫，
-    // 中間夾一次 regionsResized 通知，確保 frontend 先拿到新的版面大小
-    // 再顯示新東西。不管是全新 region 出現還是純搬動，這套 diff 都能處理。
+    // 重新計算可見性與座標,把跟上次相比有變化的 owner 分成三類處理:
+    //   hide :有 region 消失 -> 先呼叫 callback 把它們收掉
+    //   show :有 region 出現 -> 等 regionsResized 之後再呼叫 callback 顯示
+    //   move :可見清單沒變,但 x/y/width/height 變了(例如 launcher 打字變寬)-> 立刻套用新座標
+    // callback 的簽名是 callback(visibleStr, rects),
+    // rects 格式:{ regionName: [x, y, width, height] },只包含目前可見的 region。
     function recompute() {
         calcVisibility();
 
@@ -63,6 +66,7 @@ Singleton {
                 const key = r.screenName + "::" + r.name;   // <- 關鍵：帶上 screenName
                 currentStateMap[key] = {
                     list: r.visible,
+                    rects: computeRects(r),
                     callback: r.callback
                 };
         });
@@ -71,6 +75,7 @@ Singleton {
 
         const hideCalls = [];
         const showCalls = [];
+        const moveCalls = [];
 
         allKeys.forEach(key => {
                 const prev = previousStateMap[key];
@@ -78,25 +83,41 @@ Singleton {
 
                 const prevList = prev ? prev.list : [];
                 const currList = curr ? curr.list : [];
+                const currRects = curr ? curr.rects : {};
 
-                if (arraysEqual(prevList, currList)) {
+                const listSame = arraysEqual(prevList, currList);
+                const rectsSame = JSON.stringify(prev ? prev.rects : {}) === JSON.stringify(currRects);
+
+                if (listSame && rectsSame) {
                     return;
                 }
 
                 const callback = curr ? curr.callback : prev.callback;
+
+                // 只有座標/大小變了:不需要 hide/show 流程,直接套用
+                if (listSame) {
+                    moveCalls.push({ callback, list: currList, rects: currRects });
+                    return;
+                }
+
                 const surviving = currList.filter(c => prevList.includes(c));
 
                 if (surviving.length < prevList.length) {
-                    hideCalls.push({ callback, list: surviving });
+                    hideCalls.push({ callback, list: surviving, rects: currRects });
                 }
 
                 if (surviving.length < currList.length) {
-                    showCalls.push({ callback, list: currList });
+                    showCalls.push({ key, callback, list: currList, rects: currRects });
                 }
         });
 
+        // show 是延遲執行的,這段時間內 rects 可能又被 move 更新過,
+        // 所以執行當下改拿 previousStateMap 裡最新的 rects,避免用舊座標蓋回去。
         const show = () => {
-            showCalls.forEach(({ callback, list }) => callback(list.join(",")));
+            showCalls.forEach(({ key, callback, list, rects }) => {
+                    const latest = previousStateMap[key];
+                    callback(list.join(","), latest ? latest.rects : rects);
+            });
         };
 
         const resizeAndShow = () => {
@@ -104,14 +125,34 @@ Singleton {
             Utils.Functions.setTimeout(show, 250);
         };
 
+        moveCalls.forEach(({ callback, list, rects }) => callback(list.join(","), rects));
+
         if (hideCalls.length) {
-            hideCalls.forEach(({ callback, list }) => callback(list.join(",")));
+            hideCalls.forEach(({ callback, list, rects }) => callback(list.join(","), rects));
             Utils.Functions.setTimeout(resizeAndShow, 250);
         } else {
             resizeAndShow();
         }
 
         previousStateMap = currentStateMap;
+    }
+
+    // 算出某個 request 目前「可見」的每個 region 的實際 [x, y, width, height]
+    function computeRects(r) {
+        const rects = {};
+        const screen = Quickshell.screens.find(s => s.name === r.screenName);
+
+        if (!screen) {
+            return rects;
+        }
+
+        r.visible.forEach(name => {
+                const [index, width, height, offset] = r.regions[name];
+                const [x, y] = regionToCoordinate(screen, index, width, height, offset);
+                rects[name] = [x, y, width, height];
+        });
+
+        return rects;
     }
 
     // 只有同一個螢幕的 region 才會互相判斷碰撞；
@@ -139,20 +180,14 @@ Singleton {
 
     function notifyRegionResize() {
         Quickshell.screens.forEach((screen) => {
-                const screenName = screen.name;
                 const regions = [];
 
                 requestStack.forEach(r => {
-                        if (r.screenName !== screenName) return;
-
-                        r.visible.forEach(name => {
-                                const [index, width, height, offset] = r.regions[name];
-                                const [x, y] = regionToCoordinate(screen, index, width, height, offset);
-                                regions.push([x, y, width, height]);
-                        });
+                        if (r.screenName !== screen.name) return;
+                        regions.push(...Object.values(computeRects(r)));
                 });
 
-                windowChange(screenName, regions);
+                windowChange(screen.name, regions);
         });
     }
 

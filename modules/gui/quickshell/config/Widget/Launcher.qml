@@ -211,35 +211,27 @@ Scope {
                 color: "transparent"
                 visible: true
 
-                // ---- 螢幕參數(目前寫死 1920x1080;若要支援其他解析度的螢幕,
-                //      可以改成 panelWindow.width / panelWindow.height) ----
-                readonly property int screenWidth: 1920
-                readonly property int screenHeight: 1080
-                readonly property int bottomGap: 20 // 離底部的間距
-
-                // 水平置中、貼齊底部往上留 bottomGap。
-                // 因為只有 width 會變動(height 固定 3 列),
-                // 這兩條 binding 會讓面板在變寬時保持「以底部中線為錨點」左右展開。
-                x: (screenWidth - width) / 2
-                y: screenHeight - bottomGap - height
-
                 // ---- 版面參數:改這裡調整字型大小/間距 ----
                 readonly property int rowHeight: 30
                 readonly property int charWidth: 20
                 readonly property int margin: 20 // Row 四周的留白
                 property font slotFont: Qt.font({ family: "monospace", pixelSize: 20 })
 
-                width: root.columnCount * charWidth + margin * 2
-                height: 3 * rowHeight + margin * 2
+                // 這裡只「提出需求」:內容需要多大。
+                // 實際的 x / y / width / height 不在這裡綁定,
+                // 而是 Backend 算完 regionToCoordinate 後透過 callback 賦值(見 panelWindow.callback)。
+                readonly property int wantedWidth: root.columnCount * charWidth + margin * 2
+                readonly property int wantedHeight: 3 * rowHeight + margin * 2
 
-                onWidthChanged: Window.Backend.updateWindow({
+                // 需求大小變了(打字使欄數改變)就通知 Backend 重算
+                onWantedWidthChanged: Window.Backend.updateWindow({
                     name: "launcher",
-                    regions: { panel: [5, width, height, 0] }
+                    regions: { panel: [5, wantedWidth, wantedHeight, 0] }
                 })
 
                 // 一整排「整體滾輪」:每一欄自己貫穿上/中/下三列,
                 // 目標字元會從上面或下面滾過,最後落定在中間那格。
-                // 四周留 panel.margin(20px)的間距 —— 這是靠下面 syncSize() 把
+                // 四周留 panel.margin(20px)的間距 —— 這是靠 wantedWidth/wantedHeight 把
                 // panel 尺寸算成「Row 本身大小 + margin*2」,再用 centerIn 置中做到的。
                 Row {
                     id: reelRow
@@ -366,14 +358,33 @@ Scope {
                 }
             }
 
-            function callback(str) {
+            function callback(str, rects) {
                 panelVariants.instances.forEach(p => {
                     const active = p.screenName === screenName && str !== "";
                     p.visible = active;
 
                     if (!active) return;
 
-                    p.panel.opacity = str.includes("panel");
+                    const configs = {
+                        panel: 0
+                    };
+
+                    Object.entries(configs).forEach(([key, offset]) => {
+                        const rect = rects?.[key];
+                        if (!rect) return;
+
+                        const [x, y, w, h] = rect;
+                        Object.assign(p[key], {
+                            x: x + offset,
+                            y: y + offset,
+                            width: w - offset * 2,
+                            height: h - offset * 2
+                        });
+                    });
+
+                    Object.keys(configs).forEach(key => {
+                        p[key].opacity = str.includes(key);
+                    });
                 });
             }
         }
@@ -397,19 +408,17 @@ Scope {
             }
 
             if(!targetPanel.visible) {
-                // 初始大小:1 個字元寬 x 3 列高(跟面板實際的 syncSize() 公式保持一致)。
-                // 之後輸入文字時只有寬度會變(高度永遠是固定的 3 列),見 panel.syncSize()。
+                // 先清空輸入,columnCount 會變回 1,
+                // 這時 wantedWidth / wantedHeight 就是初始大小(1 個字元寬 x 3 列高)。
+                // 之後輸入文字時只有寬度會變(高度永遠是固定的 3 列),由 panel.onWantedWidthChanged 通知 Backend。
                 const p = targetPanel.panel
-                const initWidth = 1 * p.charWidth + p.margin * 2
-                const initHeight = 3 * p.rowHeight + p.margin * 2
-
                 root.filterText = ""
 
                 Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "launcher",
                         "regions": {
-                            "panel": [5, initWidth, initHeight, 0],
+                            "panel": [5, p.wantedWidth, p.wantedHeight, 0],
                         },
                         "callback": targetPanel.callback
                 })

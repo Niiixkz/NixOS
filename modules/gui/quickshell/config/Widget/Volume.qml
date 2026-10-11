@@ -24,7 +24,7 @@ Scope {
     readonly property int iconW: 28
     readonly property int barH: 8
     readonly property int rowH: 36
-    readonly property int nameMax: 430
+    readonly property int nameMax: 428
 
     // 小面板內容：icon + 音量條 + 百分比
     readonly property int miniBarW: 200
@@ -304,13 +304,6 @@ Scope {
                 color: "transparent"
                 visible: true
 
-                width: root.panelW
-                height: root.panelH
-
-                // 水平置中、距頂部 20px
-                x: (panelWindow.width - width) / 2
-                y: 20
-
                 Behavior on opacity {
                     NumberAnimation {
                         duration: 250
@@ -432,14 +425,33 @@ Scope {
                 }
             }
 
-            function callback(str) {
+            function callback(str, rects) {
                 panelVariants.instances.forEach(p => {
                     const active = p.screenName === screenName && str !== "";
                     p.visible = active;
 
                     if (!active) return;
 
-                    p.panel.opacity = str.includes("panel");
+                    const configs = {
+                        panel: 0
+                    };
+
+                    Object.entries(configs).forEach(([key, offset]) => {
+                        const rect = rects?.[key];
+                        if (!rect) return;
+
+                        const [x, y, w, h] = rect;
+                        Object.assign(p[key], {
+                            x: x + offset,
+                            y: y + offset,
+                            width: w - offset * 2,
+                            height: h - offset * 2
+                        });
+                    });
+
+                    Object.keys(configs).forEach(key => {
+                        p[key].opacity = str.includes(key);
+                    });
                 });
             }
         }
