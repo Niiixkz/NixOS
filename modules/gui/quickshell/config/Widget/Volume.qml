@@ -246,13 +246,15 @@ Scope {
         readonly property bool muted: node && node.audio ? node.audio.muted : false
 
         radius: height / 2
-        color: Qt.alpha(Utils.Colors.color15, 0.2)
+        color: Utils.Colors.color15
+        property color innerColor: Utils.Colors.color1
 
         Rectangle {
+            id: inner
             width: parent.width * Math.max(0, Math.min(1, parent.value))
             height: parent.height
             radius: parent.radius
-            color: Utils.Colors.color15
+            color: parent.innerColor
             opacity: parent.muted ? 0.4 : 1.0
 
             Behavior on width {
@@ -380,7 +382,7 @@ Scope {
                             width: root.fullContentW
                             height: root.rowH
                             radius: 10
-                            color: selected ? Utils.Colors.semiTransparentBackground : "transparent"
+                            color: selected ? Utils.Colors.color15 : "transparent"
 
                             Text {
                                 x: 0
@@ -388,7 +390,7 @@ Scope {
                                 height: root.rowH
                                 text: root.iconFor(row.modelData, row.modelData.isSink)
                                 font.pixelSize: 20
-                                color: Utils.Colors.color15
+                                color: selected ? Utils.Colors.color0 : Utils.Colors.color15
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -399,6 +401,8 @@ Scope {
                                 width: root.fullBarW
                                 height: root.barH
                                 node: row.modelData
+                                color: selected ? Utils.Colors.color0 : Utils.Colors.color15
+                                innerColor: selected ? Utils.Colors.color1 : Utils.Colors.color1
                             }
 
                             Text {
@@ -406,7 +410,7 @@ Scope {
                                 width: row.width - root.nameX
                                 height: root.rowH
                                 text: root.nodeName(row.modelData)
-                                color: Utils.Colors.color15
+                                color: selected ? Utils.Colors.color0 : Utils.Colors.color15
                                 opacity: row.isDefault ? 1.0 : 0.7
                                 font.pixelSize: 14
                                 font.bold: row.isDefault
