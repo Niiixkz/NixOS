@@ -1205,7 +1205,7 @@ Scope {
                 id: nixVisualizer
 
                 x: 1340
-                y: 600
+                y: 590
 
                 width: 560
                 height: 321
@@ -1442,9 +1442,9 @@ Scope {
 
                     if (!active) return;
 
-                    p.playlist.visible = str.includes("playlist");
-                    p.cover.visible = str.includes("cover");
-                    p.nixVisualizer.visible = str.includes("nixVisualizer");
+                    p.playlist.opacity = str.includes("playlist");
+                    p.cover.opacity = str.includes("cover");
+                    p.nixVisualizer.opacity = str.includes("nixVisualizer");
                     p.playback.opacity = str.includes("playback");
                 });
             }

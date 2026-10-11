@@ -373,7 +373,7 @@ Scope {
 
                     if (!active) return;
 
-                    p.panel.visible = str.includes("panel");
+                    p.panel.opacity = str.includes("panel");
                 });
             }
         }

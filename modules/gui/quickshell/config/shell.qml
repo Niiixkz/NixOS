@@ -15,4 +15,5 @@ ShellRoot {
     Widget.Border { }
     Widget.MusicPlayer { }
     Widget.Launcher { }
+    Widget.Volume { }
 }
