@@ -33,7 +33,7 @@ in
     loudgain
     mpc
     nix-visualizer
-    p7zip
+    p7zip-rar
     presenterm
     rar
     socat
