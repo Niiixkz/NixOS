@@ -1011,6 +1011,8 @@ Scope {
                 return WlrKeyboardFocus.None
             }
 
+            mask: Region {}
+
             Rectangle {
                 id: playlist
                 radius: 20

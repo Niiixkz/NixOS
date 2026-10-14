@@ -300,6 +300,8 @@ Scope {
                 return WlrKeyboardFocus.None
             }
 
+            mask: Region {}
+
             Rectangle {
                 id: panel
                 radius: 20
