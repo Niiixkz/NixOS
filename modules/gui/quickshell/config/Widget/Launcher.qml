@@ -109,6 +109,25 @@ Scope {
     // 顯示用欄數,至少 1 欄(輸入為空時給個空白佔位)
     readonly property int columnCount: Math.max(1, displayText.length)
 
+    // 欄位的 model:用 ListModel 一格一格 append / remove,而不是直接把整數丟給 Repeater。
+    // 原因:Repeater 的 model 是整數時,數字一變(例如 1 -> 2)就會「整批銷毀再重建」所有欄位,
+    // 舊欄位被重建後狀態全部歸零、又從空白滾一次 —— 這就是「已經打好的字也跟著滾」的元兇。
+    // 用 ListModel 增減項目,舊欄位的 delegate 會原封不動保留(連上下的隨機鄰居字都不變)。
+    ListModel { id: columnModel }
+
+    // 每一欄「已落定」的上/中/下三格,存在 root 而不是 delegate 裡。
+    // 就算 delegate 因為任何原因被重建(視窗重新顯示、model 重設...),
+    // 新的 delegate 也會從這裡把舊畫面原樣接回來,字沒變就不會滾。
+    property var columnState: []
+
+    function syncColumns() {
+        while (columnModel.count < columnCount) columnModel.append({ slot: columnModel.count })
+        while (columnModel.count > columnCount) columnModel.remove(columnModel.count - 1)
+        if (columnState.length > columnCount) columnState.length = columnCount
+    }
+    onColumnCountChanged: syncColumns()
+    Component.onCompleted: syncColumns()
+
     // ------------------------------------------------------------------
     // 執行程式
     // ------------------------------------------------------------------
@@ -154,13 +173,17 @@ Scope {
             Window.Backend.popWindow("launcher")
             break
 
+            // 不接受空白鍵輸入
+            case Qt.Key_Space:
+            break
+
             case Qt.Key_Backspace:
             root.filterText = root.filterText.slice(0, -1)
             break
 
             default:
             // 每按一個可見字元就即時 filter 一次
-            if (event.text && event.text.length > 0 && event.text.charCodeAt(0) >= 0x20) {
+            if (event.text && event.text.length > 0 && event.text.charCodeAt(0) > 0x20) {
                 root.filterText += event.text
             }
             break
@@ -241,7 +264,7 @@ Scope {
                     spacing: 0
 
                     Repeater {
-                        model: root.columnCount
+                        model: columnModel
 
                         // ---- 以下是原本 SlotColumn.qml 的內容,直接內嵌成 delegate ----
                         // 一整欄「貫穿上/中/下三列」的拉霸滾軸。三列其實是同一條帶子上
@@ -252,7 +275,7 @@ Scope {
                             required property int index
 
                             // 這一欄現在應該落定的字元;字比欄數短時補空白
-                            readonly property string ch: index < root.displayText.length
+                            readonly property string ch: (index >= 0 && index < root.displayText.length)
                                 ? root.displayText[index]
                                 : " "
                             // 只有這個位置是「輸入字元實際比對到」的才用 highlightColor,
@@ -270,11 +293,18 @@ Scope {
                             // 目前顯示中的整條帶子;每一格是 {ch, isTarget}。
                             // isTarget 標記「這一格是不是落定後的目標字元格」,只有它才可能用
                             // highlightColor,其餘(含上下鄰居格、滾動過場的隨機字元)一律 baseColor。
-                            property var _sequence: [
+                            // 空白狀態:上/下是隨機字母、中間是空白(字母 空格 字母),
+                            // 所以第一次開啟、輸入為空時就會有「x _ y」的樣子;
+                            // 新增的欄位也是從這個畫面開始滾出目標字。
+                            readonly property var _blank: [
+                                { ch: _randomChar(), isTarget: false },
                                 { ch: " ", isTarget: false },
-                                { ch: cell.ch, isTarget: true },
-                                { ch: " ", isTarget: false }
+                                { ch: _randomChar(), isTarget: false }
                             ]
+                            // 上一次落定的三格(上/中/下)。下一次滾動就從這三格「當前畫面」出發,
+                            // 所以舊字母會真的被捲走,而不是瞬間消失。新增的欄位從空白開始滾。
+                            property var _settled: _blank
+                            property var _sequence: _blank
 
                             width: charWidth
                             height: rowHeight * 3 // 固定顯示三格(上/中/下)
@@ -303,7 +333,6 @@ Scope {
                                 id: anim
                                 target: reel
                                 property: "y"
-                                duration: 380 + Math.random() * 220
                                 easing.type: Easing.OutCubic
                             }
 
@@ -312,10 +341,29 @@ Scope {
                             }
 
                             // direction:
-                            //   "bottom" -> 目標字從「下方」滾入,整條帶子向上移動後落定
-                            //   "top"    -> 目標字從「上方」滾入,整條帶子向下移動後落定
+                            //   "bottom" -> 新字從「下方」滾入,整條帶子向上移動後落定
+                            //   "top"    -> 新字從「上方」滾入,整條帶子向下移動後落定
+                            // 帶子結構:[ 舊的三格 ][ 隨機過場格 x padding ][ 新的三格 ](或反過來)
+                            // 起點永遠是「目前畫面上的舊字母」,終點是新字母。
                             function roll(direction) {
-                                var padding = 3 + Math.floor(Math.random() * 3) // 過場用的隨機格數
+                                // 每一欄各自隨機決定要滾過幾個字母
+                                var padding = 2 + Math.floor(Math.random() * 10) // 2 ~ 11 格
+
+                                // 起點:「此刻畫面上實際看到的內容」。
+                                // 如果上一段動畫還在跑,reel.y 是動畫中途的位置,不能直接拿落定的字當起點,
+                                // 否則畫面會瞬間跳到那個字(連續打字/刪除時看起來就是「跳」)。
+                                // 所以依目前 y 算出畫面最上面那格是帶子的第 k 格、還差 frac 格的小數偏移,
+                                // 取 k..k+3 共 4 格(多一格是為了涵蓋偏移),並保留這個偏移,讓動畫無縫接續。
+                                var oldSeq = cell._sequence
+                                var pos = Math.max(0, -reel.y / rowHeight)
+                                var k = Math.min(oldSeq.length - 1, Math.floor(pos + 0.0001))
+                                var frac = Math.max(0, pos - k)
+                                var from = []
+                                for (var j = 0; j < 4; j++) {
+                                    var src = oldSeq[k + j]
+                                    from.push({ ch: src ? src.ch : _randomChar(), isTarget: false })
+                                }
+
                                 var settled = [
                                     { ch: _randomChar(), isTarget: false },
                                     { ch: cell.ch, isTarget: true },
@@ -325,23 +373,55 @@ Scope {
                                 var padCells = []
                                 for (var i = 0; i < padding; i++) padCells.push({ ch: _randomChar(), isTarget: false })
 
+                                var startY, endY
                                 if (direction === "bottom") {
-                                    cell._sequence = padCells.concat(settled)
-                                    reel.y = 0
-                                    anim.to = -padding * rowHeight
+                                    // [舊 4 格][過場][新 3 格]:往上捲,終點讓新 3 格剛好在視窗內
+                                    cell._sequence = from.concat(padCells, settled)
+                                    startY = -frac * rowHeight
+                                    endY = -(4 + padding) * rowHeight
                                 } else {
-                                    cell._sequence = settled.concat(padCells)
-                                    reel.y = -padding * rowHeight
-                                    anim.to = 0
+                                    // [新 3 格][過場][舊 4 格]:往下捲,起點讓舊畫面(含偏移)在視窗內
+                                    cell._sequence = settled.concat(padCells, from)
+                                    startY = -((3 + padding) + frac) * rowHeight
+                                    endY = 0
                                 }
+                                cell._settled = settled
+                                root.columnState[cell.index] = settled
+
+                                anim.stop()
+                                reel.y = startY
+                                anim.from = startY
+                                anim.to = endY
+                                // 滾得越遠花越久,讓每欄速度感覺接近,再加一點隨機
+                                anim.duration = 300 + padding * 30 + Math.random() * 100
                                 anim.restart()
                             }
 
-                            // 第一次建立時的落定畫面
-                            Component.onCompleted: roll(Math.random() < 0.5 ? "top" : "bottom")
+                            // 統一的判斷點:只有「目標字」跟「上一次落定的字」不同才滾動。
+                            // 用 Qt.callLater 延後到這一輪事件處理完再比對,避免 displayText 在連鎖更新
+                            // 的中途出現暫時性的值(例如短暫閃成別的字再變回來),害沒變的欄位誤滾。
+                            function _sync() {
+                                if (cell.index < 0) return // 這一欄正在被移除
+                                if (cell.ch === cell._settled[1].ch) return
+                                roll(Math.random() < 0.5 ? "top" : "bottom")
+                            }
 
-                            // 只有在字元「真的變了」才會觸發 —— 連續匹配的欄位不會重新轉動的關鍵
-                            onChChanged: roll(Math.random() < 0.5 ? "top" : "bottom")
+                            // 新增的欄位:從空白滾到目標字;之後只要這一欄的字變了才會再滾。
+                            // 例如 obs -> osu!:o 不動,b->s、s->u 滾動,新增的 "!" 也滾動。
+                            Component.onCompleted: {
+                                var st = root.columnState[cell.index]
+                                if (st) {
+                                    // 這一欄之前已經落定過:直接顯示原本的畫面,不重滾
+                                    cell._settled = st
+                                    cell._sequence = st
+                                    reel.y = 0
+                                } else {
+                                    // 第一次出現的欄位:把初始畫面記下來(空白欄就是「字母 空格 字母」)
+                                    root.columnState[cell.index] = cell._settled
+                                }
+                                Qt.callLater(cell._sync)
+                            }
+                            onChChanged: Qt.callLater(cell._sync)
                         }
                     }
                 }
