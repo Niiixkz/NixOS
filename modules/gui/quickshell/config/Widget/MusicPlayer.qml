@@ -994,7 +994,7 @@ Scope {
 
             color: "transparent"
             visible: false
-            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.layer: WlrLayer.Overlay
 
             // 檢查當前螢幕是否是focused monitor
             readonly property bool isThisMonitorFocused: {

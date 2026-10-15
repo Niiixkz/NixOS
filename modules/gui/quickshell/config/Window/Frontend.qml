@@ -22,7 +22,7 @@ Variants {
         }
         color: "transparent"
         mask: Region { }
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
 
         // 面板池：每個項目描述一個 Rect 的狀態
         // roles: x, y, w, h, shown

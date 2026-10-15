@@ -285,7 +285,7 @@ Scope {
 
             color: "transparent"
             visible: false
-            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.layer: WlrLayer.Overlay
 
             readonly property bool isThisMonitorFocused: {
                 var focusedMon = Hyprland.focusedMonitor

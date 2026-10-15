@@ -17,7 +17,7 @@ Variants {
         anchors { top: true; left: true; right: true; bottom: true }
         color: "transparent"
         mask: Region { }
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
 
         Shape {
             id: frameShape
