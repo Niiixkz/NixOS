@@ -3,18 +3,32 @@ import QtQuick.Shapes
 import QtQml.Models
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Io
 
 import qs.Utils as Utils
 
 Variants {
     model: Quickshell.screens
-    id: root
+
+    // 共用動畫（原本在 delegate 裡重複寫了 7 次）
+    component Smooth: NumberAnimation {
+        duration: 250
+        easing.type: Easing.OutQuint
+    }
+    component SmoothColor: ColorAnimation {
+        duration: 250
+        easing.type: Easing.OutQuint
+    }
+    component Spring: NumberAnimation {
+        duration: 250
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1]
+    }
+
     PanelWindow {
         id: panelWindow
         property var modelData
         screen: modelData
-        readonly property var screenName: modelData.name
+        readonly property string screenName: modelData.name
         anchors {
             top: true
             left: true
@@ -55,20 +69,25 @@ Variants {
             const v = new Array(n + 1).fill(0)
             const p = new Array(n + 1).fill(0) // p[j] = 配對到 col j 的 row (1-indexed)，0 表示未配對
             const way = new Array(n + 1).fill(0)
+            // minv / used 在每輪外層迴圈重複使用，不再每輪重新配置
+            const minv = new Array(n + 1)
+            const used = new Array(n + 1)
 
             for (let i = 1; i <= n; i++) {
                 p[0] = i
                 let j0 = 0
-                const minv = new Array(n + 1).fill(INF)
-                const used = new Array(n + 1).fill(false)
+                minv.fill(INF)
+                used.fill(false)
                 do {
                     used[j0] = true
                     const i0 = p[j0]
+                    const row = costMatrix[i0 - 1]
+                    const ui0 = u[i0]
                     let delta = INF
                     let j1 = -1
                     for (let j = 1; j <= n; j++) {
                         if (!used[j]) {
-                            const cur = costMatrix[i0 - 1][j - 1] - u[i0] - v[j]
+                            const cur = row[j - 1] - ui0 - v[j]
                             if (cur < minv[j]) {
                                 minv[j] = cur
                                 way[j] = j0
@@ -107,52 +126,55 @@ Variants {
 
         // 對「已顯示的舊視窗」與「新需求」做全域最小總距離配對
         // shownItems: [{index, cx, cy}]，remainingOps: [{opIndex, x, y, w, h, cx, cy}]
-        // 回傳: { slotIndex(model index) -> op }
+        // 回傳: [{ slot(model index), op }]，依 slot 由小到大排列
         function solveAssignment(shownItems, remainingOps) {
-            const assignment = {}
             const n = shownItems.length
             const m = remainingOps.length
             if (n === 0 || m === 0)
-                return assignment
+                return []
+
+            // 1 對 1 只有唯一解，不必跑演算法
+            if (n === 1 && m === 1)
+                return [{ slot: shownItems[0].index, op: remainingOps[0] }]
 
             const size = Math.max(n, m)
             const PADDING_COST = 1e6 // 遠大於任何真實距離，代表虛擬配對
 
             // 建立方陣：超出 n 或 m 的部分為虛擬 row/col，成本設為極大值，
             // 讓演算法自然避免使用它們（除非別無選擇）
-            const cost = []
+            const cost = new Array(size)
             for (let i = 0; i < size; i++) {
-                const row = []
-                for (let j = 0; j < size; j++) {
-                    if (i < n && j < m) {
-                        const s = shownItems[i]
+                const row = new Array(size).fill(PADDING_COST)
+                if (i < n) {
+                    const s = shownItems[i]
+                    for (let j = 0; j < m; j++) {
                         const o = remainingOps[j]
                         const dx = s.cx - o.cx
                         const dy = s.cy - o.cy
-                        row.push(Math.sqrt(dx * dx + dy * dy))
-                    } else {
-                        row.push(PADDING_COST)
+                        row[j] = Math.sqrt(dx * dx + dy * dy)
                     }
                 }
-                cost.push(row)
+                cost[i] = row
             }
 
             const rowAssign = hungarianSolve(cost)
 
+            const matches = []
             for (let i = 0; i < n; i++) {
                 const j = rowAssign[i]
-                if (j >= 0 && j < m) {
-                    assignment[shownItems[i].index] = remainingOps[j]
-                }
+                if (j >= 0 && j < m)
+                    matches.push({ slot: shownItems[i].index, op: remainingOps[j] })
             }
-            return assignment
+            return matches
         }
 
         // 依「最近中心點距離」進行舊視窗優先配對，不足才建立新視窗
         function updateRects(operations) {
+            const count = rectModel.count
+
             // 收集目前已顯示的項目
-            let shownItems = []
-            for (let i = 0; i < rectModel.count; i++) {
+            const shownItems = []
+            for (let i = 0; i < count; i++) {
                 const it = rectModel.get(i)
                 if (it.shown) {
                     shownItems.push({
@@ -164,7 +186,7 @@ Variants {
             }
 
             // 待滿足的新需求
-            let remainingOps = []
+            const remainingOps = []
             for (let j = 0; j < operations.length; j++) {
                 const op = operations[j]
                 remainingOps.push({
@@ -181,9 +203,13 @@ Variants {
 
             // 用匈牙利演算法求「已顯示項目」對「新需求」的全域最小總距離配對
             // （比貪婪最近優先更好：貪婪法可能因為搶先配對到局部最近而導致全局總移動量更大）
-            const assignment = solveAssignment(shownItems, remainingOps)
-            const usedSlots = new Set(Object.keys(assignment).map(k => parseInt(k)))
-            const usedOps = new Set(Object.values(assignment).map(o => o.opIndex))
+            const matches = solveAssignment(shownItems, remainingOps)
+            const usedSlots = new Set()
+            const usedOps = new Set()
+            for (const mt of matches) {
+                usedSlots.add(mt.slot)
+                usedOps.add(mt.op.opIndex)
+            }
 
             // 未被配對到需求的「已顯示」項目 -> 淡出隱藏（保留在池中）
             for (const s of shownItems) {
@@ -192,40 +218,34 @@ Variants {
                 }
             }
 
-            // 套用配對結果：移動既有已顯示視窗
-            for (const key in assignment) {
-                const idx = parseInt(key)
-                const o = assignment[key]
-                rectModel.setProperty(idx, "x", o.x)
-                rectModel.setProperty(idx, "y", o.y)
-                rectModel.setProperty(idx, "w", o.w)
-                rectModel.setProperty(idx, "h", o.h)
-                rectModel.setProperty(idx, "owner", o.owner)
-                // 本來就是 shown = true，維持不變 -> 呈現「移動」動畫
+            // 套用配對結果：移動既有已顯示視窗（一次 set 多個 role，只發一次 dataChanged）
+            // 本來就是 shown = true，維持不變 -> 呈現「移動」動畫
+            for (const mt of matches) {
+                const o = mt.op
+                rectModel.set(mt.slot, { x: o.x, y: o.y, w: o.w, h: o.h, owner: o.owner })
             }
 
             // 尚未被滿足的新需求
-            let leftoverOps = remainingOps.filter(o => !usedOps.has(o.opIndex))
+            const leftoverOps = remainingOps.filter(o => !usedOps.has(o.opIndex))
+            let next = 0
 
             // 優先重用池中「隱藏」的舊視窗
-            for (let i = 0; i < rectModel.count && leftoverOps.length > 0; i++) {
-                const it = rectModel.get(i)
-                if (!it.shown) {
-                    const o = leftoverOps.shift()
-                    // 此時 shown 仍為 false，x/y 的 Behavior 會被 enabled: shown 停用
-                    // 因此座標會瞬間跳到新位置，不會有移動動畫
-                    rectModel.setProperty(i, "x", o.x)
-                    rectModel.setProperty(i, "y", o.y)
-                    rectModel.setProperty(i, "w", o.w)
-                    rectModel.setProperty(i, "h", o.h)
-                    rectModel.setProperty(i, "owner", o.owner)
-                    // shown 由 false -> true 是「屬性變化」，會觸發 opacity/scale 的淡入動畫
-                    rectModel.setProperty(i, "shown", true)
-                }
+            // （此時沒被配對到的 slot 都已經是 shown = false，包含剛剛被淡出的）
+            for (let i = 0; i < count && next < leftoverOps.length; i++) {
+                if (usedSlots.has(i))
+                    continue
+
+                const o = leftoverOps[next++]
+                // 此時 shown 仍為 false，x/y 的 Behavior 會被 enabled: shown 停用
+                // 因此座標會瞬間跳到新位置，不會有移動動畫
+                rectModel.set(i, { x: o.x, y: o.y, w: o.w, h: o.h, owner: o.owner })
+                // shown 由 false -> true 是「屬性變化」，會觸發 opacity/scale 的淡入動畫
+                rectModel.setProperty(i, "shown", true)
             }
 
             // 舊視窗（含隱藏池）仍不夠滿足需求，才建立新視窗
-            for (const o of leftoverOps) {
+            for (; next < leftoverOps.length; next++) {
+                const o = leftoverOps[next]
                 rectModel.append({
                     x: o.x,
                     y: o.y,
@@ -270,12 +290,7 @@ Variants {
             readonly property bool focused: Backend.focusScreen === panelWindow.screenName
             property color frameColor: focused ? Utils.Colors.color9 : Utils.Colors.color5
 
-            Behavior on frameColor {
-                ColorAnimation {
-                    duration: 250
-                    easing.type: Easing.OutQuint
-                }
-            }
+            Behavior on frameColor { SmoothColor {} }
 
             ShapePath {
                 fillRule: ShapePath.OddEvenFill
@@ -344,12 +359,7 @@ Variants {
                 border.color: active ? Utils.Colors.color9 : Utils.Colors.color5
                 border.width: 2
 
-                Behavior on border.color {
-                    ColorAnimation {
-                        duration: 250
-                        easing.type: Easing.OutQuint
-                    }
-                }
+                Behavior on border.color { SmoothColor {} }
 
                 property bool shown: model.shown
                 visible: shown || opacity > 0
@@ -358,54 +368,27 @@ Variants {
 
                 transformOrigin: Item.Center
 
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.OutQuint
-                    }
-                }
-
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.OutQuint
-                    }
-                }
+                Behavior on opacity { Smooth {} }
+                Behavior on scale { Smooth {} }
 
                 Behavior on x {
                     enabled: popup.shown
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1]
-                    }
+                    Spring {}
                 }
 
                 Behavior on y {
                     enabled: popup.shown
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1]
-                    }
+                    Spring {}
                 }
 
                 Behavior on width {
                     enabled: popup.shown
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1]
-                    }
+                    Spring {}
                 }
 
                 Behavior on height {
                     enabled: popup.shown
-                    NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1]
-                    }
+                    Spring {}
                 }
             }
         }

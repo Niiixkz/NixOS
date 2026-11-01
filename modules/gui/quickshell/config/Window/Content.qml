@@ -31,48 +31,41 @@ Variants {
             id: loader
             anchors.fill: parent
             sourceComponent: root.content
+            onLoaded: win._buildRegionMap()
         }
 
-        // 依 objectName 找 region Item(結果會快取)
-        property var _regionCache: ({})
+        property var _regions: ({})
+        function _buildRegionMap() {
+            const map = {};
+            for (const child of loader.item.children) {
+                if (child.objectName) map[child.objectName] = child;
+            }
+            _regions = map;
+        }
+
         function region(name) {
-            if (_regionCache[name]) return _regionCache[name];
-
-            const find = (node) => {
-                if (node.objectName === name) return node;
-                for (const c of node.children) {
-                    const r = find(c);
-                    if (r) return r;
-                }
-                return null;
-            };
-
-            const found = loader.item ? find(loader.item) : null;
-            if (found) _regionCache[name] = found;
-            return found;
+            return _regions[name] ?? null;
         }
 
         function callback(str, rects) {
-            const keys = str === "" ? [] : str.split(",")
-            win.visible = keys.length > 0
-            if (!win.visible) return
+            const keys = str === "" ? [] : str.split(",");
+            win.visible = keys.length > 0;
+            if (!win.visible) return;
 
-            Object.entries(root.configs).forEach(([key, offset]) => {
-                const item = win.region(key)
-                if (!item) return
+            for (const key in root.configs) {
+                const item = win.region(key);
+                if (!item) continue;
 
-                const rect = rects?.[key]
+                const offset = root.configs[key];
+                const rect = rects?.[key];
                 if (rect) {
-                    const [x, y, w, h] = rect
-                    Object.assign(item, {
-                        x: x + offset,
-                        y: y + offset,
-                        width: w - offset * 2,
-                        height: h - offset * 2
-                    });
+                    item.x = rect[0] + offset;
+                    item.y = rect[1] + offset;
+                    item.width = rect[2] - offset * 2;
+                    item.height = rect[3] - offset * 2;
                 }
-                item.opacity = keys.includes(key) ? 1 : 0
-            })
+                item.opacity = keys.includes(key) ? 1 : 0;
+            }
         }
     }
 }

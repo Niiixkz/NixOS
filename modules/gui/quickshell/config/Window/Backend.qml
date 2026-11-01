@@ -2,7 +2,6 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Hyprland
 
 import qs.Utils as Utils
@@ -12,7 +11,6 @@ Singleton {
     property var requestStack: []
 
     // 上一次每個 owner 實際顯示的狀態（component 清單 + callback）
-    // 用這一份取代原本的 previousVisibleMap + callbackRegistry，
     // owner 被 popWindow 掉之後，依然能從這裡拿到 callback 把畫面清空
     property var previousStateMap: ({})
 
@@ -97,10 +95,10 @@ Singleton {
             return;
         }
 
-        if (request.keyboard !== undefined) target.keyboard = request.keyboard;   // 新增
-        Object.entries(request.regions).forEach(([key, value]) => {
-            target.regions[key] = value;
-        });
+        if (request.keyboard !== undefined) target.keyboard = request.keyboard;
+        for (const key in request.regions) {
+            target.regions[key] = request.regions[key];
+        }
 
         recompute();
     }
@@ -117,18 +115,20 @@ Singleton {
     // callback 的簽名是 callback(visibleStr, rects),
     // rects 格式:{ regionName: [x, y, width, height] },只包含目前可見的 region。
     function recompute() {
-        calcVisibility();
+        const screens = screenMap();   // 整個流程只查一次螢幕
+
+        calcVisibility(screens);
         updateFocus();   // 可見性算完就能決定 owner,在 notifyRegionResize 之前先定案
 
         const currentStateMap = {};
-        requestStack.forEach(r => {
-                const key = r.screenName + "::" + r.name;   // <- 關鍵：帶上 screenName
-                currentStateMap[key] = {
-                    list: r.visible,
-                    rects: computeRects(r),
-                    callback: r.callback
-                };
-        });
+        for (const r of requestStack) {
+            const key = r.screenName + "::" + r.name;   // 帶上 screenName
+            currentStateMap[key] = {
+                list: r.visible,
+                rects: computeRects(r, screens),
+                callback: r.callback
+            };
+        }
 
         const allKeys = new Set([...Object.keys(previousStateMap), ...Object.keys(currentStateMap)]);
 
@@ -145,9 +145,7 @@ Singleton {
                 const currRects = curr ? curr.rects : {};
 
                 const listSame = arraysEqual(prevList, currList);
-                const rectsSame = JSON.stringify(prev ? prev.rects : {}) === JSON.stringify(currRects);
-
-                if (listSame && rectsSame) {
+                if (listSame && rectsEqual(prev ? prev.rects : {}, currRects)) {
                     return;
                 }
 
@@ -166,7 +164,7 @@ Singleton {
                 }
 
                 if (surviving.length < currList.length) {
-                    showCalls.push({ key, callback, list: currList, rects: currRects });
+                    showCalls.push({ key, callback });
                 }
         });
 
@@ -199,82 +197,131 @@ Singleton {
         previousStateMap = currentStateMap;
     }
 
+    // screenName -> screen 物件
+    function screenMap() {
+        const map = {};
+        Quickshell.screens.forEach(s => map[s.name] = s);
+        return map;
+    }
+
     // 算出某個 request 目前「可見」的每個 region 的實際 [x, y, width, height]
-    function computeRects(r) {
+    function computeRects(r, screens = screenMap()) {
         const rects = {};
-        const screen = Quickshell.screens.find(s => s.name === r.screenName);
+        const screen = screens[r.screenName];
 
         if (!screen) {
             return rects;
         }
 
-        r.visible.forEach(name => {
-                const [index, width, height, offset] = r.regions[name];
-                const [x, y] = regionToCoordinate(screen, index, width, height, offset);
-                rects[name] = [x, y, width, height];
-        });
+        for (const name of r.visible) {
+            const [index, width, height, offset] = r.regions[name];
+            const [x, y] = regionToCoordinate(screen, index, width, height, offset);
+            rects[name] = [x, y, width, height];
+        }
 
         return rects;
     }
 
     // 只有同一個螢幕的 region 才會互相判斷碰撞；
     // 優先權高的（陣列前面）先決定可見，再往後擋住較低優先權的重疊 region
-    function calcVisibility() {
-        requestStack.forEach(r => {
-                r.visible = Object.keys(r.regions);
-        });
+    function calcVisibility(screens = screenMap()) {
+        const stack = requestStack;
 
-        for (let i = 0; i < requestStack.length; i++) {
-            const upper = requestStack[i];
-            const screen = Quickshell.screens.find(s => s.name === upper.screenName);
-            const upperRegions = upper.visible.map(n => upper.regions[n]);
+        for (const r of stack) {
+            r.visible = Object.keys(r.regions);
+        }
 
-            for (let j = i + 1; j < requestStack.length; j++) {
-                const lower = requestStack[j];
-                if (upper.screenName !== lower.screenName) continue;
+        for (let i = 0; i < stack.length - 1; i++) {
+            const upper = stack[i];
+            if (upper.visible.length === 0) continue;
 
-                lower.visible = lower.visible.filter(name =>
-                    !upperRegions.some(r => isRegionConflict(screen, r, lower.regions[name]))
-                );
+            const screen = screens[upper.screenName];
+            // 上層 region 的座標只算一次，不用在每次比對時重算
+            const upperBoxes = upper.visible.map(n => regionBox(screen, upper.regions[n]));
+
+            for (let j = i + 1; j < stack.length; j++) {
+                const lower = stack[j];
+                if (upper.screenName !== lower.screenName || lower.visible.length === 0) continue;
+
+                lower.visible = lower.visible.filter(name => {
+                    const box = regionBox(screen, lower.regions[name]);
+                    return !upperBoxes.some(u => boxesConflict(u, box));
+                });
             }
         }
     }
 
     function notifyRegionResize() {
-        Quickshell.screens.forEach((screen) => {
-                const regions = [];
+        const screens = Quickshell.screens;
+        const screenMapByName = {};
+        const perScreen = {};
 
-                // 每個 rect 多帶一個 owner(request 名稱),Frontend 靠它判斷是不是焦點視窗
-                requestStack.forEach(r => {
-                        if (r.screenName !== screen.name) return;
-                        Object.values(computeRects(r)).forEach(rect => regions.push([...rect, r.name]));
-                });
-
-                windowChange(screen.name, regions);
+        // 每個 rect 多帶一個 owner(request 名稱),Frontend 靠它判斷是不是焦點視窗
+        screens.forEach(s => {
+                screenMapByName[s.name] = s;
+                perScreen[s.name] = [];
         });
+
+        for (const r of requestStack) {
+            const bucket = perScreen[r.screenName];
+            if (!bucket) continue;
+
+            const rects = computeRects(r, screenMapByName);
+            for (const name in rects) {
+                bucket.push([...rects[name], r.name]);
+            }
+        }
+
+        screens.forEach(s => windowChange(s.name, perScreen[s.name]));
     }
 
     function arraysEqual(a, b) {
         return a.length === b.length && a.every((v, i) => v === b[i]);
     }
 
-    function isRegionConflict(screen, r0, r1) {
-        const [index0, w0, h0, offset0] = r0;
-        const [index1, w1, h1, offset1] = r1;
+    // rects 格式 { name: [x, y, w, h] }，逐項比較（取代 JSON.stringify）
+    function rectsEqual(a, b) {
+        const keys = Object.keys(a);
+        if (keys.length !== Object.keys(b).length) return false;
 
-        if (index0 === index1) {
+        for (const k of keys) {
+            const p = a[k];
+            const q = b[k];
+            if (!q || p[0] !== q[0] || p[1] !== q[1] || p[2] !== q[2] || p[3] !== q[3]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // region -> { index, x, y, w, h }
+    function regionBox(screen, region) {
+        const [index, w, h, offset] = region;
+        if (!screen) return { index, x: NaN, y: NaN, w, h };
+        const [x, y] = regionToCoordinate(screen, index, w, h, offset);
+        return { index, x, y, w, h };
+    }
+
+    function boxesConflict(a, b) {
+        if (a.index === b.index) {
             return true;
         }
 
-        const [x0, y0] = regionToCoordinate(screen, index0, w0, h0, offset0);
-        const [x1, y1] = regionToCoordinate(screen, index1, w1, h1, offset1);
+        // 找不到螢幕時無法算座標，只能靠 index 判斷
+        if (isNaN(a.x) || isNaN(b.x)) {
+            return false;
+        }
 
         return !(
-            x0 + w0 < x1 ||
-            x0 > x1 + w1 ||
-            y0 + h0 < y1 ||
-            y0 > y1 + h1
+            a.x + a.w < b.x ||
+            a.x > b.x + b.w ||
+            a.y + a.h < b.y ||
+            a.y > b.y + b.h
         );
+    }
+
+    function isRegionConflict(screen, r0, r1) {
+        return boxesConflict(regionBox(screen, r0), regionBox(screen, r1));
     }
 
     function regionToCoordinate(screen, index, width, height, offset) {
