@@ -2,8 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 
-import qs.Utils as Utils
-
 Variants {
     id: root
     model: Quickshell.screens
@@ -26,20 +24,8 @@ Variants {
         mask: Region {}
         WlrLayershell.layer: WlrLayer.Overlay
 
-        WlrLayershell.keyboardFocus: {
-            if (visible
-                && Backend.focusName === root.widgetName
-                && Backend.focusScreen === screenName) {
-                Utils.Functions.imeEnable(false)
-                return WlrKeyboardFocus.Exclusive
-            }
-            return WlrKeyboardFocus.None
-        }
-
-        contentItem {
-            focus: true
-            Keys.onPressed: event => Backend.dispatchKey(event)
-        }
+        // 鍵盤焦點與按鍵不再由各 panel 處理，
+        // 統一由 Frontend 的 window 接收後交給 Backend.dispatchKey 派發
 
         Loader {
             id: loader

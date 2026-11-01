@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import QtQml.Models
 import Quickshell
 import Quickshell.Wayland
@@ -24,8 +25,20 @@ Variants {
         mask: Region { }
         WlrLayershell.layer: WlrLayer.Overlay
 
+        // ── 唯一的鍵盤入口 ──
+        // 只有焦點螢幕的 window 會拿 Exclusive,按鍵統一交給 Backend 派發給
+        // 該螢幕上最後開啟的 panel,各 widget 的 window 不再自己收按鍵
+        WlrLayershell.keyboardFocus: (Backend.focusName !== "" && Backend.focusScreen === screenName)
+                                     ? WlrKeyboardFocus.Exclusive
+                                     : WlrKeyboardFocus.None
+
+        contentItem {
+            focus: true
+            Keys.onPressed: event => Backend.dispatchKey(event)
+        }
+
         // 面板池：每個項目描述一個 Rect 的狀態
-        // roles: x, y, w, h, shown
+        // roles: x, y, w, h, shown, owner(request 名稱)
         ListModel {
             id: rectModel
         }
@@ -160,6 +173,7 @@ Variants {
                     y: op[1],
                     w: op[2],
                     h: op[3],
+                    owner: op[4],
                     cx: op[0] + op[2] / 2,
                     cy: op[1] + op[3] / 2
                 })
@@ -186,6 +200,7 @@ Variants {
                 rectModel.setProperty(idx, "y", o.y)
                 rectModel.setProperty(idx, "w", o.w)
                 rectModel.setProperty(idx, "h", o.h)
+                rectModel.setProperty(idx, "owner", o.owner)
                 // 本來就是 shown = true，維持不變 -> 呈現「移動」動畫
             }
 
@@ -203,6 +218,7 @@ Variants {
                     rectModel.setProperty(i, "y", o.y)
                     rectModel.setProperty(i, "w", o.w)
                     rectModel.setProperty(i, "h", o.h)
+                    rectModel.setProperty(i, "owner", o.owner)
                     // shown 由 false -> true 是「屬性變化」，會觸發 opacity/scale 的淡入動畫
                     rectModel.setProperty(i, "shown", true)
                 }
@@ -215,6 +231,7 @@ Variants {
                     y: o.y,
                     w: o.w,
                     h: o.h,
+                    owner: o.owner,
                     shown: false // 先以隱藏狀態建立，座標直接到位
                 })
                 const newIndex = rectModel.count - 1
@@ -236,6 +253,78 @@ Variants {
             }
         }
 
+        // ── 螢幕邊框(原本獨立的 frame window,現在由這個 window 統一管理)──
+        // 畫在 panel 的 Rectangle 底下;焦點螢幕的邊框用 color9,其餘 color5,切換有動畫
+        Shape {
+            id: frameShape
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+
+            property real inset: 5
+            property real cornerRadius: 20
+            property real ix1: inset + cornerRadius
+            property real ix2: width - inset - cornerRadius
+            property real iy1: inset + cornerRadius
+            property real iy2: height - inset - cornerRadius
+
+            readonly property bool focused: Backend.focusScreen === panelWindow.screenName
+            property color frameColor: focused ? Utils.Colors.color9 : Utils.Colors.color5
+
+            Behavior on frameColor {
+                ColorAnimation {
+                    duration: 250
+                    easing.type: Easing.OutQuint
+                }
+            }
+
+            ShapePath {
+                fillRule: ShapePath.OddEvenFill
+                fillColor: Utils.Colors.semiTransparentBackground
+                strokeColor: "transparent"
+
+                startX: 0; startY: 0
+                PathLine { x: frameShape.width; y: 0 }
+                PathLine { x: frameShape.width; y: frameShape.height }
+                PathLine { x: 0; y: frameShape.height }
+                PathLine { x: 0; y: 0 }
+
+                PathMove { x: frameShape.ix1; y: frameShape.inset }
+                PathLine { x: frameShape.ix2; y: frameShape.inset }
+                PathArc { x: frameShape.width - frameShape.inset; y: frameShape.iy1
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.width - frameShape.inset; y: frameShape.iy2 }
+                PathArc { x: frameShape.ix2; y: frameShape.height - frameShape.inset
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.ix1; y: frameShape.height - frameShape.inset }
+                PathArc { x: frameShape.inset; y: frameShape.iy2
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.inset; y: frameShape.iy1 }
+                PathArc { x: frameShape.ix1; y: frameShape.inset
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+            }
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: frameShape.frameColor
+                strokeWidth: 2
+
+                startX: frameShape.ix1; startY: frameShape.inset
+                PathLine { x: frameShape.ix2; y: frameShape.inset }
+                PathArc { x: frameShape.width - frameShape.inset; y: frameShape.iy1
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.width - frameShape.inset; y: frameShape.iy2 }
+                PathArc { x: frameShape.ix2; y: frameShape.height - frameShape.inset
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.ix1; y: frameShape.height - frameShape.inset }
+                PathArc { x: frameShape.inset; y: frameShape.iy2
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.inset; y: frameShape.iy1 }
+                PathArc { x: frameShape.ix1; y: frameShape.inset
+                          radiusX: frameShape.cornerRadius; radiusY: frameShape.cornerRadius }
+                PathLine { x: frameShape.ix1; y: frameShape.inset }
+            }
+        }
+
         Repeater {
             model: rectModel
             delegate: Rectangle {
@@ -249,8 +338,18 @@ Variants {
                 radius: 20
 
                 color: Utils.Colors.semiTransparentBackground
-                border.color: Utils.Colors.color5
+                // 焦點螢幕上最後開啟的視窗 -> color9,其餘 color5,切換有動畫
+                readonly property bool active: model.owner === Backend.focusName
+                                               && panelWindow.screenName === Backend.focusScreen
+                border.color: active ? Utils.Colors.color9 : Utils.Colors.color5
                 border.width: 2
+
+                Behavior on border.color {
+                    ColorAnimation {
+                        duration: 250
+                        easing.type: Easing.OutQuint
+                    }
+                }
 
                 property bool shown: model.shown
                 visible: shown || opacity > 0

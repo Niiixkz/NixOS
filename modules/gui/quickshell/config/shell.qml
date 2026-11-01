@@ -12,7 +12,6 @@ ShellRoot {
     Wallpaper.Frontend { }
     Window.Frontend { }
 
-    Widget.Border { }
     Widget.MusicPlayer { }
     Widget.Launcher { }
     Widget.Volume { }

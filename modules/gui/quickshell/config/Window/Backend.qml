@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 import qs.Utils as Utils
 
@@ -15,47 +16,59 @@ Singleton {
     // owner 被 popWindow 掉之後，依然能從這裡拿到 callback 把畫面清空
     property var previousStateMap: ({})
 
-    // ── 新增:鍵盤焦點 / 按鍵分派 ──
-    property string focusName: ""      // 目前持有鍵盤的 widget
+    // ── 鍵盤焦點 / 按鍵分派 ──
+    // focusScreen:compositor 目前的焦點螢幕(跟著滑鼠/游標走),
+    //              Frontend 只有這個螢幕的 window 才有機會拿 Exclusive
+    // focusName  :焦點螢幕上「最後開啟」且需要鍵盤的 request;
+    //              焦點螢幕沒有這樣的 panel 時為空字串 -> 不抓任何輸入
+    //              同時也是 border 高亮的對象
+    property string focusName: ""
     property string focusScreen: ""
-    property var keyHandlers: ({})     // name -> function(event)
-    property int focusToken: 0
+
+    // compositor 的焦點螢幕名稱(目前用 Hyprland 取得)
+    readonly property string focusedMonitorName: Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+    onFocusedMonitorNameChanged: updateFocus()
+    property var keyHandlers: ({})     // name -> function(event, screenName)
 
     function registerKeyHandler(name, fn) {
         keyHandlers[name] = fn;
     }
 
-    // 所有 widget 的 Keys.onPressed 都丟進來,由 Backend 轉給目前的 owner
+    // 唯一的按鍵入口:Frontend 在焦點螢幕上的 window 收到按鍵後呼叫這裡,
+    // 直接派發給「焦點螢幕上最後開啟(堆疊最上層)、需要鍵盤、且可見」的 request
     function dispatchKey(event) {
-        const h = keyHandlers[focusName];
-        if (h) h(event);
+        const target = requestStack.find(r =>
+            r.screenName === focusScreen && r.keyboard && r.visible.length > 0);
+        const h = target ? keyHandlers[target.name] : null;
+        if (h) h(event, target.screenName);
         event.accepted = true;
     }
 
-    // 堆疊最上層、需要鍵盤、而且目前真的可見的 request 就是 owner
+    // 焦點螢幕 = compositor 的焦點螢幕;
+    // owner = 該螢幕上堆疊最上層(最後開啟)、需要鍵盤、而且目前真的可見的 request。
+    // 焦點螢幕沒有 owner 就不抓輸入,滑鼠移到沒有 panel 的螢幕時輸入會還給該螢幕的視窗
     function updateFocus() {
-        const owner = requestStack.find(r => r.keyboard && r.visible.length > 0);
+        const hasKb = r => r.keyboard && r.visible.length > 0;
+
+        let screen = focusedMonitorName;
+        if (screen === "") {
+            // 取不到 compositor 焦點時的後備:退回全域最後開啟的 panel 所在螢幕
+            const top = requestStack.find(hasKb);
+            screen = top ? top.screenName : "";
+        }
+
+        const owner = requestStack.find(r => r.screenName === screen && hasKb(r));
         const name = owner ? owner.name : "";
-        const screen = owner ? owner.screenName : "";
 
         if (name === focusName && screen === focusScreen) return;
 
-        // 先清成空,讓舊 owner 放掉 Exclusive,稍後再給新 owner,
-        // 這樣新 owner 一定是「None -> Exclusive」,compositor 才會把焦點重新給它
-        const token = ++focusToken;
-        focusName = "";
-        focusScreen = "";
-        if (!owner) return;
-
-        // Utils.Functions.setTimeout(() => {
-            if (token !== focusToken) return;
-            focusName = name;
-            focusScreen = screen;
-        // }, 50);
+        focusName = name;
+        focusScreen = screen;
+        if (owner) Utils.Functions.imeEnable(false);
     }
 
     // 螢幕目前所有可見 region 的實際座標/大小
-    // regions 格式：[[x, y, width, height], ...]，空陣列代表這個螢幕沒有視窗
+    // regions 格式：[[x, y, width, height, ownerName], ...]，空陣列代表這個螢幕沒有視窗
     signal windowChange(var screenName, var regions)
 
     function pushWindow(request) {
@@ -101,6 +114,7 @@ Singleton {
     // rects 格式:{ regionName: [x, y, width, height] },只包含目前可見的 region。
     function recompute() {
         calcVisibility();
+        updateFocus();   // 可見性算完就能決定 owner,在 notifyRegionResize 之前先定案
 
         const currentStateMap = {};
         requestStack.forEach(r => {
@@ -176,7 +190,6 @@ Singleton {
         }
 
         previousStateMap = currentStateMap;
-        updateFocus();
     }
 
     // 算出某個 request 目前「可見」的每個 region 的實際 [x, y, width, height]
@@ -224,9 +237,10 @@ Singleton {
         Quickshell.screens.forEach((screen) => {
                 const regions = [];
 
+                // 每個 rect 多帶一個 owner(request 名稱),Frontend 靠它判斷是不是焦點視窗
                 requestStack.forEach(r => {
                         if (r.screenName !== screen.name) return;
-                        regions.push(...Object.values(computeRects(r)));
+                        Object.values(computeRects(r)).forEach(rect => regions.push([...rect, r.name]));
                 });
 
                 windowChange(screen.name, regions);
