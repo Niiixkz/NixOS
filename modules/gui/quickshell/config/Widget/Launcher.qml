@@ -126,7 +126,10 @@ Scope {
         if (columnState.length > columnCount) columnState.length = columnCount
     }
     onColumnCountChanged: syncColumns()
-    Component.onCompleted: syncColumns()
+    Component.onCompleted: {
+        syncColumns()
+        Window.Backend.registerKeyHandler("launcher", root.handleKey)
+    }
 
     // ------------------------------------------------------------------
     // 執行程式
@@ -190,48 +193,18 @@ Scope {
         }
     }
 
-    Variants {
-        id: panelVariants          // 加上 id,之後才能存取 instances
-        model: Quickshell.screens
+    Window.Content {
+        id: panelVariants          // IpcHandler 還是用這個 id 取 instances
 
-        PanelWindow {
-            id: panelWindow
-            property var modelData
-            screen: modelData
-            readonly property var screenName: modelData.name
+        widgetName: "launcher"
+        configs: ({
+            panel: 0
+        })
 
-            property alias panel: panel
-
-            anchors {
-                top: true
-                left: true
-                right: true
-                bottom: true
-            }
-
-            color: "transparent"
-            visible: false
-            WlrLayershell.layer: WlrLayer.Overlay
-
-            // 檢查當前螢幕是否是focused monitor
-            readonly property bool isThisMonitorFocused: {
-                var focusedMon = Hyprland.focusedMonitor
-                return focusedMon && focusedMon.name === screenName
-            }
-
-            // 根據是否是focused monitor和可見性來決定鍵盤焦點
-            WlrLayershell.keyboardFocus: {
-                if (visible && isThisMonitorFocused) {
-                    Utils.Functions.imeEnable(false)
-                    return WlrKeyboardFocus.Exclusive
-                }
-                return WlrKeyboardFocus.None
-            }
-
-            mask: Region {}
-
+        content: Item {
             Rectangle {
                 id: panel
+                objectName: "panel"
                 radius: 20
                 color: "transparent"
                 visible: true
@@ -433,42 +406,6 @@ Scope {
                     }
                 }
             }
-            contentItem {
-                focus: true
-                Keys.onPressed: event => {
-                    root.handleKey(event)
-                }
-            }
-
-            function callback(str, rects) {
-                panelVariants.instances.forEach(p => {
-                    const active = p.screenName === screenName && str !== "";
-                    p.visible = active;
-
-                    if (!active) return;
-
-                    const configs = {
-                        panel: 0
-                    };
-
-                    Object.entries(configs).forEach(([key, offset]) => {
-                        const rect = rects?.[key];
-                        if (!rect) return;
-
-                        const [x, y, w, h] = rect;
-                        Object.assign(p[key], {
-                            x: x + offset,
-                            y: y + offset,
-                            width: w - offset * 2,
-                            height: h - offset * 2
-                        });
-                    });
-
-                    Object.keys(configs).forEach(key => {
-                        p[key].opacity = str.includes(key);
-                    });
-                });
-            }
         }
     }
     
@@ -493,12 +430,13 @@ Scope {
                 // 先清空輸入,columnCount 會變回 1,
                 // 這時 wantedWidth / wantedHeight 就是初始大小(1 個字元寬 x 3 列高)。
                 // 之後輸入文字時只有寬度會變(高度永遠是固定的 3 列),由 panel.onWantedWidthChanged 通知 Backend。
-                const p = targetPanel.panel
+                const p = targetPanel.region("panel")
                 root.filterText = ""
 
                 Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "launcher",
+                        "keyboard": true,
                         "regions": {
                             "panel": [5, p.wantedWidth, p.wantedHeight, 0],
                         },

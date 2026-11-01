@@ -95,7 +95,10 @@ Scope {
 
     property var entries: buildEntries()
     onEntriesChanged: recalcSize()
-    Component.onCompleted: recalcSize()
+    Component.onCompleted: {
+        recalcSize()
+        Window.Backend.registerKeyHandler("volume", root.handleKey)
+    }
 
     // 以 node id 記住選取，這樣設為預設後清單重排選取仍跟著該裝置
     property int selectedId: -1
@@ -197,6 +200,7 @@ Scope {
         Window.Backend.pushWindow({
             "screenName": targetPanel.screenName,
             "name": "volume",
+            "keyboard": root.isAdvanceSetting,
             "regions": {
                 "panel": [1, root.panelW, root.panelH, 0],
             },
@@ -264,46 +268,18 @@ Scope {
     }
 
     // ───────────── 視窗 ─────────────
-    Variants {
-        id: panelVariants
-        model: Quickshell.screens
+    Window.Content {
+        id: panelVariants          // IpcHandler 還是用這個 id 取 instances
 
-        PanelWindow {
-            id: panelWindow
-            property var modelData
-            screen: modelData
-            readonly property var screenName: modelData.name
+        widgetName: "volume"
+        configs: ({
+            panel: 0
+        })
 
-            property alias panel: panel
-
-            anchors {
-                top: true
-                left: true
-                right: true
-                bottom: true
-            }
-
-            color: "transparent"
-            visible: false
-            WlrLayershell.layer: WlrLayer.Overlay
-
-            readonly property bool isThisMonitorFocused: {
-                var focusedMon = Hyprland.focusedMonitor
-                return focusedMon && focusedMon.name === screenName
-            }
-
-            WlrLayershell.keyboardFocus: {
-                if (visible && isThisMonitorFocused && root.isAdvanceSetting) {
-                    Utils.Functions.imeEnable(false)
-                    return WlrKeyboardFocus.Exclusive
-                }
-                return WlrKeyboardFocus.None
-            }
-
-            mask: Region {}
-
+        content: Item {
             Rectangle {
                 id: panel
+                objectName: "panel"
                 radius: 20
                 color: "transparent"
                 visible: true
@@ -422,43 +398,6 @@ Scope {
                         }
                     }
                 }
-            }
-
-            contentItem {
-                focus: true
-                Keys.onPressed: event => {
-                    root.handleKey(event)
-                }
-            }
-
-            function callback(str, rects) {
-                panelVariants.instances.forEach(p => {
-                    const active = p.screenName === screenName && str !== "";
-                    p.visible = active;
-
-                    if (!active) return;
-
-                    const configs = {
-                        panel: 0
-                    };
-
-                    Object.entries(configs).forEach(([key, offset]) => {
-                        const rect = rects?.[key];
-                        if (!rect) return;
-
-                        const [x, y, w, h] = rect;
-                        Object.assign(p[key], {
-                            x: x + offset,
-                            y: y + offset,
-                            width: w - offset * 2,
-                            height: h - offset * 2
-                        });
-                    });
-
-                    Object.keys(configs).forEach(key => {
-                        p[key].opacity = str.includes(key);
-                    });
-                });
             }
         }
     }

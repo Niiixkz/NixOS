@@ -93,6 +93,10 @@ Scope {
         return ""
     }
 
+    Component.onCompleted: {
+        Window.Backend.registerKeyHandler("musicPlayer", root.handleKey)
+    }
+
     // ==================================================================
     // 小工具
     // ==================================================================
@@ -970,53 +974,22 @@ Scope {
         statusTyped++
     }
 
-    Variants {
-        id: panelVariants          // 加上 id,之後才能存取 instances
-        model: Quickshell.screens
+    Window.Content {
+        id: panelVariants          // 其他地方用 panelVariants.instances 的話照舊
 
-        PanelWindow {
-            id: panelWindow
-            property var modelData
-            screen: modelData
-            readonly property var screenName: modelData.name
+        widgetName: "musicPlayer"  // 就是你原本 keyboardFocus 比對的 "musicPlayer"
+        configs: ({
+            playlist: 0,
+            cover: 2,
+            nixVisualizer: 0,
+            playback: 0
+        })
 
-            property alias playlist: playlist
-            property alias cover: cover
-            property alias playback: playback
-            property alias nixVisualizer: nixVisualizer
-
-            anchors {
-                top: true
-                left: true
-                right: true
-                bottom: true
-            }
-
-            color: "transparent"
-            visible: false
-            WlrLayershell.layer: WlrLayer.Overlay
-
-            // 檢查當前螢幕是否是focused monitor
-            readonly property bool isThisMonitorFocused: {
-                var focusedMon = Hyprland.focusedMonitor
-                return focusedMon && focusedMon.name === screenName
-            }
-
-            // 根據是否是focused monitor和可見性來決定鍵盤焦點
-            WlrLayershell.keyboardFocus: {
-                if (visible && isThisMonitorFocused) {
-                    Utils.Functions.imeEnable(false)
-                    return WlrKeyboardFocus.Exclusive
-                }
-                return WlrKeyboardFocus.None
-            }
-
-            mask: Region {}
-
+        content: Item {
             Rectangle {
                 id: playlist
                 radius: 20
-
+                objectName: "playlist"
                 color: "transparent"
                 visible: true
 
@@ -1165,7 +1138,7 @@ Scope {
             ClippingRectangle {
                 id: cover
                 radius: 20
-
+                objectName: "cover"
                 color: "transparent"
                 visible: true
 
@@ -1192,7 +1165,7 @@ Scope {
             Rectangle {
                 id: nixVisualizer
                 radius: 20
-
+                objectName: "nixVisualizer"
                 color: "transparent"
                 visible: true
 
@@ -1229,7 +1202,7 @@ Scope {
             Rectangle {
                 id: playback
                 radius: 20
-
+                objectName: "playback"
                 color: "transparent"
                 visible: true
 
@@ -1406,44 +1379,6 @@ Scope {
                     }
                 }
             }
-            contentItem {
-                focus: true
-                Keys.onPressed: event => {
-                    root.handleKey(event)
-                }
-            }
-            function callback(str, rects) {
-                panelVariants.instances.forEach(p => {
-                    const active = p.screenName === screenName && str !== "";
-                    p.visible = active;
-
-                    if (!active) return;
-
-                    const configs = {
-                        playlist: 0,
-                        cover: 2,
-                        nixVisualizer: 0,
-                        playback: 0
-                    };
-
-                    Object.entries(configs).forEach(([key, offset]) => {
-                        const rect = rects?.[key];
-                        if (!rect) return;
-
-                        const [x, y, w, h] = rect;
-                        Object.assign(p[key], {
-                            x: x + offset,
-                            y: y + offset,
-                            width: w - offset * 2,
-                            height: h - offset * 2
-                        });
-                    });
-
-                    Object.keys(configs).forEach(key => {
-                        p[key].opacity = str.includes(key);
-                    });
-                });
-            }
         }
     }
 
@@ -1469,6 +1404,7 @@ Scope {
                 Window.Backend.pushWindow({
                         "screenName": Hyprland.focusedMonitor.name,
                         "name": "musicPlayer",
+                        "keyboard": true,
                         "regions": {
                             "playlist": [0, 1310, 890, 0],
                             "cover": [2, 560, 560, 0],

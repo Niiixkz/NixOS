@@ -15,6 +15,45 @@ Singleton {
     // owner 被 popWindow 掉之後，依然能從這裡拿到 callback 把畫面清空
     property var previousStateMap: ({})
 
+    // ── 新增:鍵盤焦點 / 按鍵分派 ──
+    property string focusName: ""      // 目前持有鍵盤的 widget
+    property string focusScreen: ""
+    property var keyHandlers: ({})     // name -> function(event)
+    property int focusToken: 0
+
+    function registerKeyHandler(name, fn) {
+        keyHandlers[name] = fn;
+    }
+
+    // 所有 widget 的 Keys.onPressed 都丟進來,由 Backend 轉給目前的 owner
+    function dispatchKey(event) {
+        const h = keyHandlers[focusName];
+        if (h) h(event);
+        event.accepted = true;
+    }
+
+    // 堆疊最上層、需要鍵盤、而且目前真的可見的 request 就是 owner
+    function updateFocus() {
+        const owner = requestStack.find(r => r.keyboard && r.visible.length > 0);
+        const name = owner ? owner.name : "";
+        const screen = owner ? owner.screenName : "";
+
+        if (name === focusName && screen === focusScreen) return;
+
+        // 先清成空,讓舊 owner 放掉 Exclusive,稍後再給新 owner,
+        // 這樣新 owner 一定是「None -> Exclusive」,compositor 才會把焦點重新給它
+        const token = ++focusToken;
+        focusName = "";
+        focusScreen = "";
+        if (!owner) return;
+
+        // Utils.Functions.setTimeout(() => {
+            if (token !== focusToken) return;
+            focusName = name;
+            focusScreen = screen;
+        // }, 50);
+    }
+
     // 螢幕目前所有可見 region 的實際座標/大小
     // regions 格式：[[x, y, width, height], ...]，空陣列代表這個螢幕沒有視窗
     signal windowChange(var screenName, var regions)
@@ -27,6 +66,7 @@ Singleton {
                 name: request.name,
                 regions: request.regions,
                 callback: request.callback,
+                keyboard: request.keyboard ?? false,
                 visible: []
         });
 
@@ -40,6 +80,7 @@ Singleton {
             return;
         }
 
+        if (request.keyboard !== undefined) target.keyboard = request.keyboard;   // 新增
         Object.entries(request.regions).forEach(([key, value]) => {
             target.regions[key] = value;
         });
@@ -135,6 +176,7 @@ Singleton {
         }
 
         previousStateMap = currentStateMap;
+        updateFocus();
     }
 
     // 算出某個 request 目前「可見」的每個 region 的實際 [x, y, width, height]
