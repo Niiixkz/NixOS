@@ -53,31 +53,26 @@ Variants {
         }
 
         function callback(str, rects) {
-            root.instances.forEach(p => {
-                const active = p.screenName === screenName && str !== "";
-                p.visible = active;
+            const keys = str === "" ? [] : str.split(",")
+            win.visible = keys.length > 0
+            if (!win.visible) return
 
-                if (!active) return;
+            Object.entries(root.configs).forEach(([key, offset]) => {
+                const item = win.region(key)
+                if (!item) return
 
-                Object.entries(root.configs).forEach(([key, offset]) => {
-                    const item = p.region(key);
-                    const rect = rects?.[key];
-                    if (!item || !rect) return;
-
-                    const [x, y, w, h] = rect;
+                const rect = rects?.[key]
+                if (rect) {
+                    const [x, y, w, h] = rect
                     Object.assign(item, {
                         x: x + offset,
                         y: y + offset,
                         width: w - offset * 2,
                         height: h - offset * 2
                     });
-                });
-
-                Object.keys(root.configs).forEach(key => {
-                    const item = p.region(key);
-                    if (item) item.opacity = str.includes(key);
-                });
-            });
+                }
+                item.opacity = keys.includes(key) ? 1 : 0
+            })
         }
     }
 }
