@@ -62,6 +62,7 @@ Scope {
     property bool isPlaying: false
 
     // 視覺化頻譜資料(由 nixVisualizerProcess 更新)
+    readonly property int barCount: 130
     property var audioData: []
 
     // ==================================================================
@@ -106,9 +107,9 @@ Scope {
         return ((index % length) + length) % length
     }
 
-    // 以 id 查詢歌曲,找不到回傳 undefined
+    // 以 id 查詢歌曲
     function songById(id) {
-        return songList.find(s => s.id === id)
+        return songList[id]
     }
 
     // mpd protocol 字串跳脫(雙引號包起來,反斜線 / 引號需要 escape)
@@ -155,13 +156,22 @@ Scope {
     // ------------------------------------------------------------------
 
     // 以空白切開關鍵字,每個關鍵字都必須出現在 title / artist / album 合併文字中
-    function getFilteredList() {
-        const keywords = filterText.toLowerCase().split(/\s+/).filter(k => k.length > 0)
-        if (keywords.length === 0)
-            return songList
+    // function getFilteredList() {
+    //     const keywords = filterText.toLowerCase().split(/\s+/).filter(k => k.length > 0)
+    //     if (keywords.length === 0)
+    //         return songList
 
-        return songList.filter(song => keywords.every(k => song.searchText.includes(k)))
+    //     return songList.filter(song => keywords.every(k => song.searchText.includes(k)))
+    // }
+
+    readonly property var filteredList: {
+        const keywords = filterText.toLowerCase().split(/\s+/).filter(k => k.length > 0)
+        return keywords.length === 0
+            ? songList
+            : songList.filter(song => keywords.every(k => song.searchText.includes(k)))
     }
+
+    function getFilteredList() { return filteredList }   // 舊呼叫點不用改
 
     // ==================================================================
     // MPD socket
@@ -688,7 +698,7 @@ Scope {
         command: [
             "nix-visualizer",
             "--sink", "nix-visualizer_sink.monitor",    // 音訊來源 sink
-            "--num-bars", "130",                        // 輸出 130 條 bar
+            "--num-bars", String(barCount),                        // 輸出 130 條 bar
             "--bar-max", "281",                         // 每條 bar 的數值上限
             "--fft-size", "8192",                       // FFT 視窗變大,頻率解析度更高、延遲也更高
             "--fft-pad", "1",                           // 不做零填補
@@ -768,8 +778,7 @@ Scope {
         windowList = slots
     }
 
-    onSongListChanged: ensureSelection()
-    onFilterTextChanged: ensureSelection()
+    onFilteredListChanged: ensureSelection()
     onSelectedSongIdChanged: computeWindow()
 
     // ==================================================================
@@ -1007,16 +1016,20 @@ Scope {
                     spacing: 0   // 剛好塞進容器高度,不留間距以避免超出
 
                     Repeater {
-                        model: root.windowList
+                        // 整數 model:39 個 delegate 常駐,換歌單/移動游標時只更新內容,不重建
+                        model: root.windowSize
                         delegate: Rectangle {
                             id: delegateItem
                             width: playlistColumn.width
                             height: 22
                             radius: 20
 
+                            // 這一列對應的歌曲(空位為 null);取代原本的 modelData
+                            readonly property var song: root.windowList[index] ?? null
+
                             readonly property bool isSearchBarSlot: index === (root.windowSize - 1) && (root.mode === "search" || root.filterText !== "" || root.statusLabel !== "")
-                            readonly property bool isSelected: !isSearchBarSlot && index === root.centerIndex && modelData !== null
-                            readonly property bool isPlaying: !isSearchBarSlot && modelData !== null && modelData.id === root.currentSongId
+                            readonly property bool isSelected: !isSearchBarSlot && index === root.centerIndex && song !== null
+                            readonly property bool isPlaying: !isSearchBarSlot && song !== null && song.id === root.currentSongId
 
                             color: isSelected ? Utils.Colors.color15 : "transparent"
 
@@ -1060,7 +1073,7 @@ Scope {
                                 anchors.leftMargin: delegateItem.rowMargin
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: delegateItem.rowWidths.title
-                                text: modelData ? ((delegateItem.isPlaying ? "󰐊 " : "") + modelData.title) : ""
+                                text: delegateItem.song ? ((delegateItem.isPlaying ? "󰐊 " : "") + delegateItem.song.title) : ""
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
                                 font.bold: delegateItem.isPlaying
@@ -1076,7 +1089,7 @@ Scope {
                                 anchors.rightMargin: delegateItem.rowMargin
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: delegateItem.rowWidths.artist
-                                text: modelData ? modelData.artist : ""
+                                text: delegateItem.song ? delegateItem.song.artist : ""
                                 font.family: "DejaVu Sans Mono"
                                 font.pixelSize: 20
                                 color: delegateItem.isSelected ? Utils.Colors.color0 : Utils.Colors.color15
@@ -1146,6 +1159,9 @@ Scope {
                     anchors.fill: parent
 
                     source: currentSong ? `/home/niiixkz/Music/${currentSong.file.split("/")[0]}/cover.avif` : ""
+                    asynchronous: true
+                    sourceSize.width: parent.width
+                    sourceSize.height: parent.height
 
                     fillMode: Image.PreserveAspectFit
                     horizontalAlignment: Image.AlignHCenter
@@ -1176,18 +1192,13 @@ Scope {
                     anchors.centerIn: parent
 
                     Repeater {
-                        model: root.audioData
+                        model: root.barCount
 
                         Rectangle {
                             width: 4
-                            height: root.audioData[index]
+                            height: root.audioData[index] ?? 0
                             color: Utils.Colors.color15
-
                             anchors.bottom: parent.bottom
-
-                            Behavior on height {
-                                NumberAnimation { duration: 50 }
-                            }
                         }
                     }
                 }
