@@ -42,10 +42,6 @@ Scope {
         return { matched: pi === p.length, firstIndex: firstIndex, matchedIndices: matchedIndices }
     }
 
-    function fuzzyMatch(pattern, text) {
-        return fuzzyMatchInfo(pattern, text).matched
-    }
-
     // 字元分類排序權重:數字 < 大寫字母 < 小寫字母 < 符號
     function charRank(ch) {
         if (ch >= "0" && ch <= "9") return 0
@@ -68,17 +64,21 @@ Scope {
         return 0
     }
 
-    // 所有符合 filterText 的程式,依「最左優先」排序,同分再依 charRank 排序
+    // 所有符合 filterText 的程式(連同比對資訊),依「最左優先」排序,同分再依 charRank 排序
     // 例如打 "o":obs、osu! 的 o 都在 index0,firefox 的 o 在 index5 -> obs/osu! 排前面;
     //          obs 跟 osu! 同分時比較下一個字元 'b' vs 's','b' 較前 -> obs 排最前
-    readonly property var matchedNames: {
+    readonly property var matches: {
         if (filterText.length === 0) return []
 
         var candidates = []
         for (var i = 0; i < programs.length; i++) {
             var info = fuzzyMatchInfo(filterText, programs[i])
             if (info.matched) {
-                candidates.push({ name: programs[i], firstIndex: info.firstIndex })
+                candidates.push({
+                    name: programs[i],
+                    firstIndex: info.firstIndex,
+                    matchedIndices: info.matchedIndices
+                })
             }
         }
 
@@ -87,27 +87,51 @@ Scope {
             return compareByCharOrder(a.name, b.name)
         })
 
-        return candidates.map(function(c) { return c.name })
+        return candidates
     }
 
-    // 目前只顯示「最佳匹配」(matchedNames 排序後的第一筆)。
-    // 如果你想要同時列出多筆匹配結果,可以改成走訪 matchedNames 疊出多排 SlotColumn。
-    readonly property string bestMatch: matchedNames.length > 0 ? matchedNames[0] : ""
+    // 目前只顯示「最佳匹配」(排序後的第一筆)。
+    // 如果你想要同時列出多筆匹配結果,可以改成走訪 matches 疊出多排 SlotColumn。
+    readonly property string bestMatch: matches.length > 0 ? matches[0].name : ""
+    readonly property bool isMatch: matches.length > 0
 
-    // 目前要顯示的整個「詞」:有匹配就顯示匹配到的程式名稱,
-    // 沒匹配到就直接顯示目前打的字(不再用隨機亂數字串)。
-    readonly property string displayText: bestMatch.length > 0 ? bestMatch : filterText
-    readonly property bool isMatch: bestMatch.length > 0
+    // 目前要顯示的整個「詞」:有匹配就顯示匹配到的程式名稱,沒匹配到就直接顯示目前打的字。
+    // 注意:這裡直接讀 matches,不要用 isMatch / bestMatch 組合。
+    // 它們是各自獨立的 binding,更新時可能出現「isMatch 還是舊值、bestMatch 已變空字串」的瞬間,
+    // displayText 會短暫變成 "" -> columnCount 掉到 1 -> 欄位被 syncColumns 移除,之後又重建重滾。
+    readonly property string displayText: matches.length > 0 ? matches[0].name : filterText
 
-    // bestMatch 裡「真正被輸入字元比對到」的位置索引。
-    // 例如打 "ff" 比對到 "firefox":第一個 f 在 index0、第二個 f 在 index4 -> [0, 4]
+    // bestMatch 裡「真正被輸入字元比對到」的位置索引(例如 "ff" 對 "firefox" -> [0, 4])。
     // 只有這些位置的字元要上色 color15,其餘(包含上下裝飾列)都是 color1。
-    readonly property var matchedIndices: isMatch
-        ? fuzzyMatchInfo(filterText, bestMatch).matchedIndices
-        : []
+    readonly property var matchedIndices: matches.length > 0 ? matches[0].matchedIndices : []
 
     // 顯示用欄數,至少 1 欄(輸入為空時給個空白佔位)
     readonly property int columnCount: Math.max(1, displayText.length)
+
+    // ------------------------------------------------------------------
+    // 版面:所有計算都在 root,panel 只負責套用 Backend 算出來的結果
+    // ------------------------------------------------------------------
+
+    // ---- 版面參數:改這裡調整字型大小/間距 ----
+    readonly property int rowHeight: 30
+    readonly property int charWidth: 20
+    readonly property int margin: 20 // Row 四周的留白
+    property font slotFont: Qt.font({ family: "monospace", pixelSize: 20 })
+
+    // 內容需要多大(Row 本身大小 + margin * 2,panel 再用 centerIn 置中 Row)
+    readonly property int wantedWidth: columnCount * charWidth + margin * 2
+    readonly property int wantedHeight: 3 * rowHeight + margin * 2
+
+    // 給 Backend 的 region 需求;用函式而不是 property,確保每次呼叫都拿到最新的 wanted 值
+    function panelRegions() {
+        return { panel: [5, wantedWidth, wantedHeight, 0] }
+    }
+
+    // 需求寬度變了(打字使欄數改變)就通知 Backend 重算
+    onWantedWidthChanged: Window.Backend.updateWindow({
+        name: "launcher",
+        regions: panelRegions()
+    })
 
     // 欄位的 model:用 ListModel 一格一格 append / remove,而不是直接把整數丟給 Repeater。
     // 原因:Repeater 的 model 是整數時,數字一變(例如 1 -> 2)就會「整批銷毀再重建」所有欄位,
@@ -204,32 +228,14 @@ Scope {
         content: Item {
             Rectangle {
                 id: panel
-                objectName: "panel"
+                objectName: "panel"   // Window.Content 用 objectName 找到它,並賦值 x / y / width / height / opacity
                 radius: 20
                 color: "transparent"
                 visible: true
 
-                // ---- 版面參數:改這裡調整字型大小/間距 ----
-                readonly property int rowHeight: 30
-                readonly property int charWidth: 20
-                readonly property int margin: 20 // Row 四周的留白
-                property font slotFont: Qt.font({ family: "monospace", pixelSize: 20 })
-
-                // 這裡只「提出需求」:內容需要多大。
-                // 實際的 x / y / width / height 不在這裡綁定,
-                // 而是 Backend 算完 regionToCoordinate 後透過 callback 賦值(見 panelWindow.callback)。
-                readonly property int wantedWidth: root.columnCount * charWidth + margin * 2
-                readonly property int wantedHeight: 3 * rowHeight + margin * 2
-
-                // 需求大小變了(打字使欄數改變)就通知 Backend 重算
-                onWantedWidthChanged: Window.Backend.updateWindow({
-                    name: "launcher",
-                    regions: { panel: [5, wantedWidth, wantedHeight, 0] }
-                })
-
                 // 一整排「整體滾輪」:每一欄自己貫穿上/中/下三列,
                 // 目標字元會從上面或下面滾過,最後落定在中間那格。
-                // 四周留 panel.margin(20px)的間距 —— 這是靠 wantedWidth/wantedHeight 把
+                // 四周留 root.margin(20px)的間距 —— 這是靠 root.wantedWidth/wantedHeight 把
                 // panel 尺寸算成「Row 本身大小 + margin*2」,再用 centerIn 置中做到的。
                 Row {
                     id: reelRow
@@ -257,9 +263,9 @@ Scope {
 
                             readonly property color baseColor: Utils.Colors.color1
                             readonly property color highlightColor: Utils.Colors.color15
-                            readonly property int rowHeight: panel.rowHeight
-                            readonly property int charWidth: panel.charWidth
-                            readonly property font targetFont: panel.slotFont
+                            readonly property int rowHeight: root.rowHeight
+                            readonly property int charWidth: root.charWidth
+                            readonly property font targetFont: root.slotFont
 
                             readonly property var charset: "abcdefghijklmnopqrstuvwxyz0123456789!@#$%".split("")
 
@@ -413,39 +419,36 @@ Scope {
         target: `launcher`
 
         function toggle() {
-            if (!Hyprland.focusedMonitor)
-            return
+            const monitor = Hyprland.focusedMonitor
+            if (!monitor)
+                return
 
             // 從 instances 裡找到對應 focusedMonitor 的那個 PanelWindow
             const targetPanel = panelVariants.instances.find(
-                p => p.screenName === Hyprland.focusedMonitor.name
+                p => p.screenName === monitor.name
             )
 
             if (!targetPanel) {
-                console.warn("找不到對應螢幕的 panel:", Hyprland.focusedMonitor.name)
+                console.warn("找不到對應螢幕的 panel:", monitor.name)
                 return
             }
 
-            if(!targetPanel.visible) {
-                // 先清空輸入,columnCount 會變回 1,
-                // 這時 wantedWidth / wantedHeight 就是初始大小(1 個字元寬 x 3 列高)。
-                // 之後輸入文字時只有寬度會變(高度永遠是固定的 3 列),由 panel.onWantedWidthChanged 通知 Backend。
-                const p = targetPanel.region("panel")
-                root.filterText = ""
-
-                Window.Backend.pushWindow({
-                        "screenName": Hyprland.focusedMonitor.name,
-                        "name": "launcher",
-                        "keyboard": true,
-                        "regions": {
-                            "panel": [5, p.wantedWidth, p.wantedHeight, 0],
-                        },
-                        "callback": targetPanel.callback
-                })
-            }
-            else{
+            if (targetPanel.visible) {
                 Window.Backend.popWindow("launcher")
+                return
             }
+
+            // 先清空輸入,columnCount 會變回 1,wantedWidth / wantedHeight 即為初始大小。
+            // 之後輸入文字時只有寬度會變,由 root.onWantedWidthChanged 通知 Backend。
+            root.filterText = ""
+
+            Window.Backend.pushWindow({
+                "screenName": monitor.name,
+                "name": "launcher",
+                "keyboard": true,
+                "regions": root.panelRegions(),
+                "callback": targetPanel.callback
+            })
         }
     }
 }
