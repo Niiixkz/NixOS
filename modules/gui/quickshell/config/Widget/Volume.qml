@@ -225,7 +225,7 @@ Scope {
         const p = findPanel()
         if (!p) return
 
-        if (!p.visible)
+        if (!Window.Backend.isOpen("volume", p.screenName))
             pushRegion(p)
 
         hideTimer.restart()
@@ -413,7 +413,7 @@ Scope {
             hideTimer.stop()
 
             // 大面板已開 → 關閉
-            if (targetPanel.visible && root.isAdvanceSetting) {
+            if (Window.Backend.isOpen("volume", targetPanel.screenName) && root.isAdvanceSetting) {
                 root.isAdvanceSetting = false
                 Window.Backend.popWindow("volume")
                 return

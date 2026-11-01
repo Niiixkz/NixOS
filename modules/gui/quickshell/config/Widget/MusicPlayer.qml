@@ -1386,38 +1386,39 @@ Scope {
         target: `musicPlayer`
 
         function toggle() {
-            if (!Hyprland.focusedMonitor)
-            return
+            const monitor = Hyprland.focusedMonitor
+            if (!monitor)
+                return
 
             // 從 instances 裡找到對應 focusedMonitor 的那個 PanelWindow
             const targetPanel = panelVariants.instances.find(
-                p => p.screenName === Hyprland.focusedMonitor.name
+                p => p.screenName === monitor.name
             )
 
             if (!targetPanel) {
-                console.warn("找不到對應螢幕的 panel:", Hyprland.focusedMonitor.name)
+                console.warn("找不到對應螢幕的 panel:", monitor.name)
                 return
             }
 
-            if(!targetPanel.visible) {
-                nixVisualizerProcess.signal(10)
-                Window.Backend.pushWindow({
-                        "screenName": Hyprland.focusedMonitor.name,
-                        "name": "musicPlayer",
-                        "keyboard": true,
-                        "regions": {
-                            "playlist": [0, 1310, 890, 0],
-                            "cover": [2, 560, 560, 0],
-                            "playback": [5, 1880, 140, 0],
-                            "nixVisualizer": [3, 560, 320, 210]
-                        },
-                        "callback": targetPanel.callback
-                })
-            }
-            else{
+            if(Window.Backend.isOpen("musicPlayer", targetPanel.screenName)) {
                 Window.Backend.popWindow("musicPlayer")
                 nixVisualizerProcess.signal(12)
+                return
             }
+
+            nixVisualizerProcess.signal(10)
+            Window.Backend.pushWindow({
+                    "screenName": targetPanel.screenName,
+                    "name": "musicPlayer",
+                    "keyboard": true,
+                    "regions": {
+                        "playlist": [0, 1310, 890, 0],
+                        "cover": [2, 560, 560, 0],
+                        "playback": [5, 1880, 140, 0],
+                        "nixVisualizer": [3, 560, 320, 210]
+                    },
+                    "callback": targetPanel.callback
+            })
         }
     }
 }

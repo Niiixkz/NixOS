@@ -433,7 +433,7 @@ Scope {
                 return
             }
 
-            if (targetPanel.visible) {
+            if(Window.Backend.isOpen("launcher", targetPanel.screenName)) {
                 Window.Backend.popWindow("launcher")
                 return
             }
@@ -443,7 +443,7 @@ Scope {
             root.filterText = ""
 
             Window.Backend.pushWindow({
-                "screenName": monitor.name,
+                "screenName": targetPanel.screenName,
                 "name": "launcher",
                 "keyboard": true,
                 "regions": root.panelRegions(),

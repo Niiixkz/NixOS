@@ -44,6 +44,10 @@ Singleton {
         event.accepted = true;
     }
 
+    function isOpen(name, screenName) {
+        return requestStack.some(r => r.name === name && r.screenName === screenName);
+    }
+
     // 焦點螢幕 = compositor 的焦點螢幕;
     // owner = 該螢幕上堆疊最上層(最後開啟)、需要鍵盤、而且目前真的可見的 request。
     // 焦點螢幕沒有 owner 就不抓輸入,滑鼠移到沒有 panel 的螢幕時輸入會還給該螢幕的視窗
@@ -169,9 +173,12 @@ Singleton {
         // show 是延遲執行的,這段時間內 rects 可能又被 move 更新過,
         // 所以執行當下改拿 previousStateMap 裡最新的 rects,避免用舊座標蓋回去。
         const show = () => {
-            showCalls.forEach(({ key, callback, list, rects }) => {
-                    const latest = previousStateMap[key];
-                    callback(list.join(","), latest ? latest.rects : rects);
+            showCalls.forEach(({ key, callback }) => {
+                const latest = previousStateMap[key];
+                // owner 在等待期間已被 pop(或這個螢幕上已不存在):
+                // 它的 hide 早就處理過了,不能再把畫面叫回來
+                if (!latest) return;
+                callback(latest.list.join(","), latest.rects);
             });
         };
 
